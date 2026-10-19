@@ -1,0 +1,13 @@
+node_modules/
+dist/
+sites/
+.sites-runtime/
+.sites-checkout/
+.env
+.env.*
+*.zip
+*.log
+conversation-scenes.png
+PROJECT_NOTES.md
+assets/README.md
+日常英会話フレーズ300選.txt
