@@ -69,7 +69,7 @@ function loadApp(saved = {}, seed = 12345) {
       practice: () => practice,
       nodes: () => simulationNodes,
       setPractice: value => { practice = value; },
-      buildSimulation, buildOptions, findCorePatterns, startConversation, pickStartConversation,
+      buildSimulation, buildOptions, findCorePatterns, startConversation, pickStartConversation, teacherReceipt,
       chooseReply, showMessageTranslation, hideMessageTranslation, formatEnglish, init,
       helpers: () => commonReplies,
       supplied: () => suppliedLibrary,
@@ -288,7 +288,147 @@ test('A mismatched reply triggers clarification, then lets the learner recover',
   const index = api.practice().options.findIndex(o => !o.action);
   api.chooseReply(index, element('#replyOptions').children[index]);
   assert(flush());
+  const node = api.nodes()[api.practice().nodeId];
+  assert(api.practice().nodeId === 'turn1' || node.kind === 'reaction' && node.resumeNext === 'turn1');
+});
+
+test('Every enhanced turn offers a learner question and the teacher answers it instead of asking again', () => {
+  const { api, element, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const before = api.nodes().turn0.partnerEn;
+  const index = api.practice().options.findIndex(option => option.action === 'ask');
+  assert(index >= 0);
+  const selected = api.practice().options[index];
+  const allowedAnswers = new Set(selected.stories.map(story => story.en));
+  api.chooseReply(index, element('#replyOptions').children[index]);
+  assert(flush());
+  const reaction = api.nodes()[api.practice().nodeId];
+  assert.equal(reaction.kind, 'reaction');
+  assert(allowedAnswers.has(reaction.partnerEn));
+  assert.notEqual(reaction.partnerEn, before);
+  assert(!reaction.partnerEn.includes('?'));
+  assert(api.practice().options.some(option => option.action === 'ask'));
+  assert(api.practice().options.some(option => !option.action));
+});
+
+test('A follow-up question gets details of the same teacher story', () => {
+  const { api, element, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  let index = api.practice().options.findIndex(option => option.action === 'ask');
+  api.chooseReply(index, element('#replyOptions').children[index]);
+  assert(flush());
+  const node = api.nodes()[api.practice().nodeId];
+  const detail = node.story.detailEn;
+  const question = node.questions.find(option => option.text === 'Can you tell me more about that?');
+  api.practice().options = [question];
+  api.chooseReply(0, new Element());
+  assert(flush());
+  const answered = api.nodes()[api.practice().nodeId];
+  assert.equal(answered.partnerEn, detail);
+  assert.equal(answered.resumeNext, 'turn1');
+});
+
+test('What about you gets an answer to the cooking question, not an unrelated anecdote', () => {
+  const { api, flush } = loadApp();
+  for (let i = 0; i < 12; i++) {
+    api.startConversation('source-scene-home-cooking');
+    const question = api.nodes().turn0.questions.find(option => option.text === 'What about you?');
+    api.practice().options = [question];
+    api.chooseReply(0, new Element());
+    assert(flush());
+    const answer = api.nodes()[api.practice().nodeId];
+    assert(/cooked soup|made pasta/i.test(answer.partnerEn));
+    assert(!/cafe|reading|guitar/i.test(answer.partnerEn));
+  }
+});
+
+test('Advice can be acknowledged without treating it as happy news', () => {
+  const { api, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const question = api.nodes().turn0.questions.find(option => option.text === 'Do you have any recommendations?');
+  api.practice().options = [question];
+  api.chooseReply(0, new Element());
+  assert(flush());
+  const node = api.nodes()[api.practice().nodeId];
+  assert.equal(node.story.tone, 'neutral');
+  assert(node.choices.some(option => option.text === 'That makes sense.'));
+  assert(!node.choices.some(option => option.text === "I'm glad to hear that."));
+});
+
+test('Learner can react to the teacher and then continue the original conversation', () => {
+  const { api, element, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const question = api.nodes().turn0.questions[0];
+  api.practice().options = [question];
+  api.chooseReply(0, new Element());
+  assert(flush());
+  const reaction = api.nodes()[api.practice().nodeId];
+  assert.equal(reaction.kind, 'reaction');
+  const index = api.practice().options.findIndex(option => !option.action);
+  const reply = api.practice().options[index];
+  assert(reaction.choices.some(choice => choice.text === reply.text));
+  api.chooseReply(index, element('#replyOptions').children[index]);
+  assert(flush());
   assert.equal(api.practice().nodeId, 'turn1');
+});
+
+test('At most two direct answers pass before the teacher shares a statement', () => {
+  const { api, element, flush } = loadApp();
+  for (let run = 0; run < 30; run++) {
+    api.startConversation('source-scene-last-weekend');
+    let directAnswers = 0;
+    let shares = 0;
+    for (let step = 0; step < 12 && !api.practice().completed; step++) {
+      const node = api.nodes()[api.practice().nodeId];
+      if (node.kind === 'conversation') directAnswers++;
+      else if (node.kind === 'reaction') {
+        shares++;
+        assert(!node.story.en.includes('?'));
+        assert(!node.partnerEn.trim().endsWith('?'));
+        assert(directAnswers <= 2);
+        directAnswers = 0;
+      }
+      const index = api.practice().options.findIndex(option => !option.action);
+      assert(index >= 0);
+      api.chooseReply(index, element('#replyOptions').children[index]);
+      assert(flush());
+    }
+    assert(api.practice().completed);
+    assert(shares >= 1);
+  }
+});
+
+test('Teacher acknowledgements are varied and fit difficult, uncertain and happy replies', () => {
+  const { api } = loadApp();
+  const base = { kind: 'conversation' };
+  const negative = ['I made a mistake.', 'I was a little disappointed.', "I've been busy with work."];
+  for (const text of negative) {
+    for (let i = 0; i < 8; i++) {
+      const receipt = api.teacherReceipt({ text }, base);
+      assert.equal(receipt.tone, 'tough');
+      assert(!/nice|good to hear|glad/.test(receipt.en.toLowerCase()));
+    }
+  }
+  assert.equal(api.teacherReceipt({ text: 'I had fun.' }, base).tone, 'positive');
+  assert.equal(api.teacherReceipt({ text: "I haven't decided yet." }, base).tone, 'neutral');
+  const lines = new Set();
+  for (let i = 0; i < 12; i++) lines.add(api.teacherReceipt({ text: 'I cooked pasta.' }, base).en);
+  assert(lines.size >= 3);
+});
+
+test('Runtime conversation beats do not overwrite customized scripts or saved content', () => {
+  const original = loadApp();
+  const saved = plain(original.api.conversations());
+  const custom = saved.find(c => c.id === 'source-scene-home-cooking');
+  custom.turns[0].partnerEn = 'My own question?';
+  original.storage.set(conversationKey, JSON.stringify(saved));
+  const { api } = loadApp(Object.fromEntries(original.storage));
+  const actual = api.conversations().find(c => c.id === custom.id);
+  assert.deepEqual(plain(actual.turns), custom.turns);
+  const nodes = api.buildSimulation(actual);
+  assert.equal(nodes.turn0.partnerEn, 'My own question?');
+  assert(!nodes.turn0.questions);
+  assert(!Object.keys(nodes).some(key => key.startsWith('reaction-')));
 });
 
 test('All 300 source phrases have complete examples and all 132 slot templates have three variants', () => {
