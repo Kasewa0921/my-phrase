@@ -8,6 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const source = html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^    init\(\);\s*$/m, '');
 const conversationKey = 'my-phrase-conversations-v1';
 const libraryKey = 'my-phrase-topic-library-v1';
+const replyLanguageKey = 'my-phrase-reply-language-v1';
 const plain = value => JSON.parse(JSON.stringify(value));
 
 class Element {
@@ -71,6 +72,7 @@ function loadApp(saved = {}, seed = 12345) {
       setPractice: value => { practice = value; },
       buildSimulation, buildOptions, findCorePatterns, startConversation, pickStartConversation, teacherReceipt,
       chooseReply, showMessageTranslation, hideMessageTranslation, formatEnglish, init,
+      setReplyLanguage, paintReplyOptions, replyLanguage: () => replyLanguage,
       helpers: () => commonReplies,
       supplied: () => suppliedLibrary,
       suppliedConversations: () => suppliedConversations,
@@ -144,6 +146,141 @@ test('The real init path renders four choices and does not force the morning con
   assert.notEqual(api.practice().conversationId, 'morning');
   assert.equal(element('#replyOptions').children.length, 4);
   assert.equal(element('#chatLog').children.length, 1);
+});
+
+test('Choices default to Japanese while the teacher continues speaking English', () => {
+  const { api, element } = loadApp();
+  api.init();
+  assert.equal(api.replyLanguage(), 'ja');
+  const choices = element('#replyOptions').children;
+  api.practice().options.forEach((option, i) => {
+    assert(choices[i].innerHTML.includes('lang="ja"'));
+    assert(choices[i].innerHTML.includes(option.ja));
+    assert(!choices[i].innerHTML.includes('lang="en"'));
+  });
+  assert.equal(element('#replyJapaneseBtn').attributes['aria-pressed'], 'true');
+  assert.equal(element('#replyEnglishBtn').attributes['aria-pressed'], 'false');
+  const message = element('#chatLog').children[0];
+  assert.equal(message.children[1].children[1].children[0].children[0].attributes.lang, 'en');
+});
+
+test('Selecting a Japanese choice posts its paired English and keeps the eye translation', () => {
+  const { api, element } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const index = api.practice().options.findIndex(option => !option.action);
+  const option = api.practice().options[index];
+  element('#replyOptions').children[index].events.click();
+  const user = element('#chatLog').children[1];
+  const line = user.children[1].children[1];
+  const text = line.children[0].children[0];
+  assert.equal(text.attributes.lang, 'en');
+  assert.equal(text.innerHTML, api.formatEnglish(option.text, option.core || ''));
+  assert(text.innerHTML.includes('phrase-core'));
+  assert.equal(api.practice().log[0].text, option.text);
+  assert.equal(api.practice().log[0].ja, option.ja);
+  line.children[1].events.click();
+  assert.equal(text.attributes.lang, 'ja');
+  assert.equal(text.innerHTML, option.ja);
+});
+
+test('Language controls preserve the exact choices, order, chat and progress', () => {
+  const { api, element } = loadApp();
+  api.init();
+  const before = plain(api.practice());
+  const options = api.practice().options;
+  const chat = [...element('#chatLog').children];
+  element('#replyEnglishBtn').events.click();
+  assert.equal(api.replyLanguage(), 'en');
+  assert.equal(api.practice().options, options);
+  assert.deepEqual(plain(api.practice()), before);
+  assert.deepEqual(element('#chatLog').children, chat);
+  element('#replyOptions').children.forEach((button, index) => {
+    assert(button.innerHTML.includes('lang="en"'));
+    assert(button.innerHTML.includes(api.formatEnglish(options[index].text, options[index].core || '')));
+  });
+  assert.equal(element('#replyEnglishBtn').attributes['aria-pressed'], 'true');
+  element('#replyJapaneseBtn').events.click();
+  assert.equal(api.replyLanguage(), 'ja');
+  assert.equal(api.practice().options, options);
+  assert.deepEqual(plain(api.practice()), before);
+});
+
+test('Choice language preference survives reload and invalid values fall back to Japanese', () => {
+  const { api, storage } = loadApp();
+  api.init();
+  api.setReplyLanguage('en');
+  assert.equal(storage.get(replyLanguageKey), 'en');
+  const reloaded = loadApp(Object.fromEntries(storage));
+  reloaded.api.init();
+  assert.equal(reloaded.api.replyLanguage(), 'en');
+  assert(reloaded.element('#replyOptions').children.every(b => b.innerHTML.includes('lang="en"')));
+  reloaded.api.setReplyLanguage('ja');
+  assert.equal(loadApp(Object.fromEntries(reloaded.storage)).api.replyLanguage(), 'ja');
+  assert.equal(loadApp({ [replyLanguageKey]: 'invalid' }).api.replyLanguage(), 'ja');
+  reloaded.api.setReplyLanguage('invalid');
+  assert.equal(reloaded.storage.get(replyLanguageKey), 'ja');
+});
+
+test('Language changes cannot reset disabled choices while a reply or topic transition is pending', () => {
+  const { api, element, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const index = api.practice().options.findIndex(option => !option.action);
+  api.chooseReply(index, element('#replyOptions').children[index]);
+  const buttons = [...element('#replyOptions').children];
+  api.setReplyLanguage('en');
+  assert.equal(api.replyLanguage(), 'ja');
+  assert.deepEqual(element('#replyOptions').children, buttons);
+  assert(buttons.every(b => b.disabled));
+  buttons[index].events.click();
+  assert.equal(api.practice().log.length, 1);
+  assert(flush());
+  while (!api.practice().completed) {
+    const i = api.practice().options.findIndex(option => !option.action);
+    api.chooseReply(i, element('#replyOptions').children[i]);
+    assert(flush());
+  }
+  const finalButtons = [...element('#replyOptions').children];
+  api.setReplyLanguage('en');
+  assert.equal(api.replyLanguage(), 'ja');
+  assert.deepEqual(element('#replyOptions').children, finalButtons);
+  assert(flush());
+  assert(element('#replyOptions').children.every(b => b.innerHTML.includes('lang="ja"')));
+  api.setReplyLanguage('en');
+  assert.equal(api.replyLanguage(), 'en');
+});
+
+test('Japanese questions still trigger teacher answers rather than advancing the original question', () => {
+  const { api, element, flush } = loadApp();
+  api.startConversation('source-scene-home-cooking');
+  const index = api.practice().options.findIndex(option => option.action === 'ask');
+  assert(index >= 0);
+  const question = api.practice().options[index];
+  assert(element('#replyOptions').children[index].innerHTML.includes(question.ja));
+  element('#replyOptions').children[index].events.click();
+  assert.equal(api.practice().log[0].text, question.text);
+  assert(flush());
+  assert.equal(api.practice().nodeId, question.next);
+  assert.equal(api.nodes()[api.practice().nodeId].kind, 'reaction');
+  assert(element('#replyOptions').children.every(b => b.innerHTML.includes('lang="ja"')));
+});
+
+test('Japanese choice text is escaped and an absent translation safely falls back to English', () => {
+  const { api, element } = loadApp();
+  api.setPractice({ options: [
+    { text: 'Sounds good.', ja: '<img src=x onerror=alert(1)> & "test"' },
+    { text: 'Could I see the menu?', ja: '' },
+    { text: 'Sounds good.', ja: '   ' },
+    { text: 'Sounds good.' }
+  ] });
+  api.paintReplyOptions();
+  const choices = element('#replyOptions').children;
+  assert(!choices[0].innerHTML.includes('<img'));
+  assert(choices[0].innerHTML.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert(choices[0].innerHTML.includes('&amp;'));
+  for (const button of choices.slice(1)) {
+    assert(button.innerHTML.includes('lang="en"'));
+    assert(button.innerHTML.includes('phrase-core'));
+  }
 });
 
 test('Each built-in opening has at least three variants without back-to-back repetition', () => {

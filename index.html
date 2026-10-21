@@ -99,6 +99,10 @@
     .message-eye svg { display: block; width: 20px; height: 20px; }
     .message-result { text-align: center; font-size: 12px; color: var(--muted); }
     .composer { border-top: 1px solid var(--line); padding-top: 18px; }
+    .reply-language { display: flex; justify-content: flex-end; gap: 2px; margin-bottom: 8px; }
+    .reply-language button { min-height: 30px; padding: 4px 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+    .reply-language button[aria-pressed="true"] { border-color: var(--line); background: var(--surface); color: var(--ink); }
+    .reply-language button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .reply-options { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: 1fr; gap: 10px; }
     .reply-option { display: flex; align-items: center; gap: 12px; min-height: 56px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); text-align: left; font-size: 14px; line-height: 1.6; }
     .reply-option:hover:not(:disabled) { background: var(--brand-soft); border-color: #91b2ee; }
@@ -240,6 +244,10 @@
           <div class="chat-log" id="chatLog" role="log" aria-label="練習の会話" aria-live="polite" aria-relevant="additions"></div>
           <div class="composer" id="composer">
             <span class="sr-only" id="replyStatus" role="status" aria-live="polite"></span>
+            <div class="reply-language" id="replyLanguage" role="group" aria-label="選択肢の言語">
+              <button type="button" id="replyJapaneseBtn" lang="ja" aria-pressed="true">日本語</button>
+              <button type="button" id="replyEnglishBtn" lang="en" aria-pressed="false">English</button>
+            </div>
             <div class="reply-options" id="replyOptions" role="group" aria-label="あなたの返事"></div>
             <div class="assessment" id="emptyPractice" hidden><button class="btn primary" id="addFromPractice">会話を追加</button></div>
           </div>
@@ -316,6 +324,7 @@
     const STORAGE_KEY = "my-phrase-mvp-v1";
     const CONVERSATIONS_KEY = "my-phrase-conversations-v1";
     const LAST_START_KEY = "my-phrase-last-start-v1";
+    const REPLY_LANGUAGE_KEY = "my-phrase-reply-language-v1";
     const SUPPLIED_LIBRARY_KEY = "my-phrase-supplied-library-v1";
     const SUPPLIED_PHRASES_KEY = "my-phrase-supplied-phrases-v1";
     const suppliedLibrary = globalThis.PHRASE_LIBRARY || [];
@@ -888,6 +897,7 @@
     let topicQueue = [];
     let recentTopics = [];
     let practice = { conversationId: null, nodeId: null, waiting: false, completed: false, results: [], log: [], repaired: false, options: [] };
+    let replyLanguage = localStorage.getItem(REPLY_LANGUAGE_KEY) === "en" ? "en" : "ja";
     let responseTimer = null;
     let cheatTimer = null;
     let runVersion = 0;
@@ -1561,6 +1571,7 @@
 
     function setReplyMode(mode) {
       $("#replyOptions").hidden = mode !== "reply";
+      $("#replyLanguage").hidden = mode !== "reply";
       $("#emptyPractice").hidden = mode !== "empty";
 
     }
@@ -2056,19 +2067,34 @@
 
     function renderOptions(node) {
       practice.options = buildOptions(node);
+      paintReplyOptions();
+      setReplyMode("reply");
+    }
+
+    function setReplyLanguage(language) {
+      if (!["ja", "en"].includes(language) || practice.waiting || practice.completed) return;
+      replyLanguage = language;
+      localStorage.setItem(REPLY_LANGUAGE_KEY, language);
+      paintReplyOptions();
+    }
+
+    function paintReplyOptions() {
+      $("#replyJapaneseBtn").setAttribute("aria-pressed", String(replyLanguage === "ja"));
+      $("#replyEnglishBtn").setAttribute("aria-pressed", String(replyLanguage === "en"));
       const root = $("#replyOptions");
       root.innerHTML = "";
       practice.options.forEach((option, index) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "reply-option";
+        const japanese = replyLanguage === "ja" && !!option.ja?.trim();
+        const text = japanese ? escapeHtml(option.ja) : formatEnglish(option.text, option.core || "");
         button.innerHTML = '<span class="option-letter" aria-hidden="true">' + "ABCD"[index]
-          + '</span><span class="option-text" lang="en">' + formatEnglish(option.text, option.core || "")
+          + '</span><span class="option-text" lang="' + (japanese ? "ja" : "en") + '">' + text
           + '</span>';
         button.addEventListener("click", () => chooseReply(index, button));
         root.appendChild(button);
       });
-      setReplyMode("reply");
     }
 
     function showTurn() {
@@ -2294,6 +2320,8 @@
     }
 
     function bindEvents() {
+      $("#replyJapaneseBtn").addEventListener("click", () => setReplyLanguage("ja"));
+      $("#replyEnglishBtn").addEventListener("click", () => setReplyLanguage("en"));
       $$(".nav button").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
       ["#addFromList"].forEach((id) => $(id).addEventListener("click", openAdd));
       ["#quickAddBtn", "#addFromPractice"].forEach((id) => $(id).addEventListener("click", () => openConversationEditor()));
