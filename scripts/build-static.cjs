@@ -7,6 +7,7 @@ const output = path.join(root, 'dist');
 const files = [
   'index.html',
   'phrase-library.js',
+  'beginner-dialogues.js',
   'assets/teacher-cutout.png',
   'assets/learner-cutout.png'
 ];
@@ -15,6 +16,7 @@ const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if (!script) throw new Error('Missing application script');
 new vm.Script(script, { filename: 'index.html' });
 new vm.Script(fs.readFileSync(path.join(root, 'phrase-library.js'), 'utf8'), { filename: 'phrase-library.js' });
+new vm.Script(fs.readFileSync(path.join(root, 'beginner-dialogues.js'), 'utf8'), { filename: 'beginner-dialogues.js' });
 
 // Refuse to publish unexpected files left in an existing build directory.
 function checkOutput(directory, prefix = '') {

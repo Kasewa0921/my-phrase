@@ -320,6 +320,7 @@
   </div>
 
   <script src="phrase-library.js"></script>
+  <script src="beginner-dialogues.js"></script>
   <script>
     const STORAGE_KEY = "my-phrase-mvp-v1";
     const CONVERSATIONS_KEY = "my-phrase-conversations-v1";
@@ -328,6 +329,7 @@
     const SUPPLIED_LIBRARY_KEY = "my-phrase-supplied-library-v1";
     const SUPPLIED_PHRASES_KEY = "my-phrase-supplied-phrases-v1";
     const suppliedLibrary = globalThis.PHRASE_LIBRARY || [];
+    const reviewedDialogues = globalThis.BEGINNER_DIALOGUES || {};
     const suppliedExamples = new Map();
     for (const entry of suppliedLibrary) {
       for (const example of entry.examples) {
@@ -1489,8 +1491,9 @@
 
     function pickStartConversation() {
       const lastId = localStorage.getItem(LAST_START_KEY);
-      const fresh = conversations.filter((c) => c.id !== lastId);
-      return shuffle(fresh.length ? fresh : conversations)[0]?.id;
+      const pool = practiceConversations();
+      const fresh = pool.filter((c) => c.id !== lastId);
+      return shuffle(fresh.length ? fresh : pool)[0]?.id;
     }
 
     function currentConversation() {
@@ -1500,15 +1503,15 @@
     function renderConversationSelect() {
       const select = $("#conversationSelect");
       select.innerHTML = "";
-      conversations.forEach((c) => {
+      practiceConversations().forEach((c) => {
         const option = document.createElement("option");
         option.value = c.id;
         option.textContent = c.title;
         select.appendChild(option);
       });
-      select.value = practice.conversationId || conversations[0]?.id || "";
-      select.disabled = !conversations.length;
-      $("#editConversationBtn").disabled = !conversations.length;
+      select.value = practice.conversationId || practiceConversations()[0]?.id || "";
+      select.disabled = !practiceConversations().length;
+      $("#editConversationBtn").disabled = !practiceConversations().length;
     }
 
     function scrollChat() {
@@ -1587,7 +1590,7 @@
         const next = index + 1 < c.turns.length ? "turn" + (index + 1) : null;
         nodes["turn" + index] = {
           partnerEn: turn.partnerEn, partnerJa: turn.partnerJa, replyJa: turn.replyJa,
-          choices: [response(turn.replyEn, turn.replyJa, next, "", { core: turn.core || "" }), ...(turn.alternatives || []).map((a) => response(a.text, a.ja, next, "", { ...a }))]
+          choices: [response(turn.replyEn, turn.replyJa, next, "", { core: turn.core || "", reactionEn: turn.reactionEn, reactionJa: turn.reactionJa }), ...(turn.alternatives || []).map((a) => response(a.text, a.ja, next, "", { ...a }))]
         };
       });
       const seed = seedConversations.find((item) => item.id === c.id);
@@ -1668,131 +1671,18 @@
       return { en, ja, detailEn, detailJa, tone };
     }
 
-    const teacherChatProfiles = {
-      food: {
-        stories: [
-          teacherStory("I like making soup at home. It's easy.", "私は家でスープを作るのが好き。簡単なんだ。", "I usually use carrots and potatoes. I make enough for two days.", "いつもニンジンとジャガイモを使うよ。2日分作るんだ。"),
-          teacherStory("I tried a small cafe last weekend. The bread was great.", "先週末、小さなカフェに行ったんだ。パンがおいしかったよ。", "It was near the park. I had bread and a cup of coffee.", "公園の近くだよ。パンとコーヒーを楽しんだんだ。")
-        ],
-        tip: teacherStory("I'd try a simple soup. You only need a few things.", "簡単なスープがおすすめ。材料が少なくて済むよ。", "You can use carrots, potatoes, and water. Cook them until they're soft.", "ニンジン、ジャガイモ、水で作れるよ。柔らかくなるまで煮るんだ。")
-      },
-      work: {
-        stories: [
-          teacherStory("I had a busy day yesterday. I needed a break.", "昨日は忙しくてね。休憩が必要だったよ。", "I had a lot of work, so I took a short walk after lunch.", "仕事が多かったから、昼食のあと少し歩いたんだ。", "tough"),
-          teacherStory("I finished a small project this week. That felt good.", "今週、小さな仕事がひとつ終わったんだ。うれしかったよ。", "I made some new lessons. I worked on a little each day.", "新しい授業を作ったよ。毎日少しずつ進めていたんだ。")
-        ],
-        tip: teacherStory("I like taking short breaks. They help me think.", "短い休憩を取るのがおすすめ。考えを整理できるよ。", "I stand up, get some water, and walk for a few minutes.", "立ち上がって水を飲んで、数分歩くんだ。")
-      },
-      weekend: {
-        stories: [
-          teacherStory("I had lunch with a friend on Sunday. We talked for hours.", "日曜は友人とランチをしたよ。何時間も話したんだ。", "We went to a quiet cafe. We hadn't seen each other in a while.", "静かなカフェに行ったよ。久しぶりに会ったんだ。"),
-          teacherStory("I stayed home last weekend. It was nice to rest.", "先週末は家にいたよ。ゆっくりできてよかった。", "I read a book and made dinner. I didn't make any big plans.", "本を読んで夕食を作ったよ。大きな予定は入れなかったんだ。")
-        ],
-        tip: teacherStory("A short walk and a coffee is a nice way to spend a day.", "少し散歩してコーヒーを飲むのも、いい過ごし方だよ。", "I like going to the park in the morning, before it gets busy.", "朝、人が増える前に公園に行くのが好きなんだ。")
-      },
-      hobbies: {
-        stories: [
-          teacherStory("I enjoy reading at night. It helps me relax.", "私は夜の読書が好き。落ち着くんだ。", "I like short stories. I usually read for about twenty minutes.", "短い物語が好きだよ。いつも20分くらい読むんだ。"),
-          teacherStory("I'm learning a few new songs on the guitar.", "ギターで新しい曲をいくつか練習しているんだ。", "I play a little after dinner. Some parts are still hard for me.", "夕食のあとに少し弾くよ。まだ難しいところもあるんだ。", "neutral")
-        ],
-        tip: teacherStory("I'd start with something small that you enjoy.", "自分が楽しめる小さなことから始めるのがおすすめだよ。", "Even five minutes is fine. I like doing a little every day.", "5分でも大丈夫。私は毎日少しずつするのが好きなんだ。")
-      },
-      movies: {
-        stories: [
-          teacherStory("I watched a funny movie last night. I laughed a lot.", "昨夜は面白い映画を観てね。たくさん笑ったよ。", "It was about two old friends on a trip. I liked the simple story.", "旅行する昔からの友人2人の話だよ。シンプルな話がよかったんだ。"),
-          teacherStory("I like old movies. I sometimes watch the same one again.", "昔の映画が好きなんだ。同じ映画をまた観ることもあるよ。", "I notice something new each time. The music is often my favorite part.", "観るたびに新しいことに気づくよ。音楽が一番好きなことが多いね。")
-        ],
-        tip: teacherStory("I'd try a short, funny movie. It's a nice way to relax.", "短くて面白い映画がおすすめ。いい気分転換になるよ。", "I like simple stories about everyday life. They're easy to follow.", "日常生活のシンプルな話が好きだよ。話を追いやすいんだ。")
-      },
-      travel: {
-        stories: [
-          teacherStory("I like short trips. There are nice places close to home.", "短い旅行が好きなんだ。家の近くにもいい場所があるよ。", "I often take the train to a small town and walk around.", "よく電車で小さな町に行って、歩いて回るんだ。"),
-          teacherStory("I once got on the wrong train. I was a bit worried.", "前に電車を間違えてね。少し心配になったよ。", "I asked someone for help. Luckily, I got back to the right station.", "人に助けを求めたんだ。幸い、正しい駅に戻れたよ。", "tough")
-        ],
-        tip: teacherStory("I'd try a place nearby first. You don't need a big plan.", "まずは近くの場所がおすすめ。大きな計画は要らないよ。", "I check the train times and choose one place to visit.", "電車の時間を調べて、行く場所をひとつ決めるんだ。")
-      },
-      weather: {
-        stories: [
-          teacherStory("I like rainy days when I can stay home and read.", "家で読書できる雨の日は好きなんだ。", "I make a cup of tea and sit by the window. It's quiet.", "紅茶を入れて窓のそばに座るんだ。静かでいいよ。"),
-          teacherStory("I love going outside on a sunny morning.", "晴れた朝に外に出るのが大好きなんだ。", "I usually walk to the park before breakfast.", "普段は朝食の前に公園まで歩くよ。")
-        ],
-        tip: teacherStory("On a rainy day, I like a book and a warm drink.", "雨の日は本と温かい飲み物がおすすめだよ。", "When it's sunny, I take a short walk instead.", "晴れの日なら、代わりに少し散歩するんだ。")
-      },
-      shopping: {
-        stories: [
-          teacherStory("I bought a new bag recently. I use it every day.", "最近新しいバッグを買ったんだ。毎日使っているよ。", "It has room for my books. I found it in a small shop.", "本を入れる場所があるんだ。小さなお店で見つけたよ。"),
-          teacherStory("I once bought shoes online, but they were too small.", "前にネットで靴を買ったら、小さすぎたんだ。", "I sent them back. Now I try shoes on in a store.", "返品したよ。今はお店で試し履きするんだ。", "tough")
-        ],
-        tip: teacherStory("I usually check the price in two shops before I buy.", "私は買う前に2つのお店で値段を比べるよ。", "I also ask myself if I'll use it often. That helps me choose.", "よく使うかどうかも考えるんだ。そうすると選びやすいよ。")
-      },
-      exercise: {
-        stories: [
-          teacherStory("I walk a little every morning. I like the quiet streets.", "毎朝少し歩くんだ。静かな道が好きでね。", "I go for about fifteen minutes. I don't walk very fast.", "15分くらい歩くよ。あまり速くは歩かないんだ。"),
-          teacherStory("Some days I just want to stay in bed. I know that feeling.", "ベッドにいたいだけの日もあるよ。そういう気持ちはわかるんだ。", "On those days, I just do a little. I don't try to do too much.", "そんな日は少しだけするよ。無理にたくさんやろうとはしないんだ。", "neutral")
-        ],
-        tip: teacherStory("I'd start with a short walk. Five minutes is fine.", "短い散歩から始めるのがおすすめ。5分でも大丈夫。", "I choose a quiet place close to home. That makes it easy to go.", "家の近くの静かな場所を選ぶよ。そうすると出かけやすいんだ。")
-      }
-    };
     const recentTeacherLines = [];
-    const teacherCuriosity = {
-      food: { text: "Have you ever tried making bread?", ja: "パンを作ったことはある？", story: teacherStory("Yes. I made some bread last month.", "うん。先月パンを作ったよ。", "I used a simple recipe. It took time, but I enjoyed it.", "簡単なレシピを使ったよ。時間はかかったけど楽しかったんだ。") },
-      work: { text: "Have you ever tried working at home?", ja: "家で働いたことはある？", story: teacherStory("Yes. I sometimes work at home.", "うん。ときどき家で働くよ。", "I make lessons at my desk. I try to take short breaks.", "机で授業を作るんだ。短い休憩を取るようにしているよ。") },
-      weekend: { text: "Do you usually see friends on weekends?", ja: "週末はよく友達に会う？", story: teacherStory("Sometimes. I like having lunch with an old friend.", "ときどきね。昔からの友人とのランチが好きだよ。", "We often choose a quiet cafe near the park.", "よく公園の近くの静かなカフェを選ぶんだ。") },
-      hobbies: { text: "Have you ever tried painting?", ja: "絵を描いてみたことはある？", story: teacherStory("Yes. I tried it once. I wasn't very good, but it was fun.", "うん。一度やったよ。上手ではなかったけど、楽しかったね。", "I painted a tree in the park. The colors were my favorite part.", "公園の木を描いたんだ。色を塗るのが一番好きだったよ。") },
-      movies: { text: "Do you usually watch movies at home?", ja: "普段は家で映画を観る？", story: teacherStory("Yes, I usually watch at home.", "うん、普段は家で観るよ。", "I like sitting in my favorite chair with a cup of tea.", "お気に入りの椅子に座って、お茶を飲みながら観るのが好きなんだ。") },
-      travel: { text: "Do you usually travel by train?", ja: "普段は電車で旅行する？", story: teacherStory("Yes. I like taking the train.", "うん。電車で行くのが好きだよ。", "I can read or look out the window. It's a nice part of the trip.", "本を読んだり、窓の外を見たりできるんだ。そこも旅行の楽しみだよ。") },
-      weather: { text: "Do you usually go out when it rains?", ja: "雨の日も普段は出かける？", story: teacherStory("Not much. I usually stay home on rainy days.", "あまり出かけないね。雨の日は普段、家にいるよ。", "I read, make tea, and listen to the rain.", "本を読んで、お茶を入れて、雨の音を聞くんだ。") },
-      shopping: { text: "Do you usually shop online?", ja: "普段はネットで買い物する？", story: teacherStory("Sometimes, but I like small shops too.", "ときどきね。でも小さなお店も好きだよ。", "For shoes, I go to a store so I can try them on.", "靴は試し履きできるように、お店に行くんだ。") },
-      exercise: { text: "Do you usually walk in the morning?", ja: "普段は朝に歩く？", story: teacherStory("Yes. I like a short walk before breakfast.", "うん。朝食の前の短い散歩が好きだよ。", "The streets are quiet then. I usually walk for fifteen minutes.", "その時間は道が静かなんだ。いつも15分くらい歩くよ。") }
-    };
 
     function pickTeacherLine(lines) {
       const fresh = lines.filter((line) => !recentTeacherLines.slice(-3).includes(line.en));
-      const different = lines.filter((line) => line.en !== recentTeacherLines[recentTeacherLines.length - 1]);
-      const line = shuffle(fresh.length ? fresh : different.length ? different : lines)[0];
+      const line = shuffle(fresh.length ? fresh : lines)[0];
       recentTeacherLines.push(line.en);
       if (recentTeacherLines.length > 12) recentTeacherLines.shift();
       return line;
     }
 
-    function teacherAnswers(node, profile) {
-      const prompt = node.partnerEn.toLowerCase();
-      if (/what.*cook|cook.*home/.test(prompt)) return [
-        teacherStory("I cooked soup at home. I like simple meals.", "私は家でスープを作ったよ。簡単な料理が好きなんだ。", "I used carrots and potatoes. I made enough for two days.", "ニンジンとジャガイモを使ったよ。2日分作ったんだ。"),
-        teacherStory("I made pasta. I cook it quite often.", "私はパスタを作ったよ。けっこうよく作るんだ。", "I usually add tomatoes and a little cheese.", "いつもトマトと少しのチーズを入れるよ。")
-      ];
-      if (/how.*taste|how was the food/.test(prompt)) return [teacherStory("My soup was a little too salty.", "私のスープは少し塩辛すぎたよ。", "I added too much salt. I'll use less next time.", "塩を入れすぎたんだ。次は少なくするよ。", "tough")];
-      if (/what.*working on|what.*at work/.test(prompt)) return [teacherStory("I'm working on some new English lessons.", "私は新しい英語の授業を作っているよ。", "I want to use more stories from everyday life.", "もっと日常生活の話を使いたいんだ。")];
-      if (/what.*watched|watch.*recently/.test(prompt)) return [teacherStory("I watched a funny movie last night.", "私は昨夜、面白い映画を観たよ。", "It was about two old friends on a trip. It made me laugh.", "旅行する昔からの友人2人の話だよ。笑ったね。")];
-      if (/what.*read recently/.test(prompt)) return [teacherStory("I finished a short story about a small town.", "私は小さな町の短い物語を読み終えたよ。", "The people in the story felt real. I liked the ending.", "登場人物に実感があったよ。結末も好きだった。")];
-      if (/favorite part/.test(prompt)) return [teacherStory("My favorite part was the music.", "私は音楽が一番好きだったよ。", "I still remember one of the songs. It was simple but nice.", "今も一曲覚えているよ。シンプルだけどよかったんだ。")];
-      if (/price/.test(prompt)) return [teacherStory("I bought a bag recently. It was on sale.", "私は最近バッグを買ったよ。セールだったんだ。", "I checked two shops first. I was happy with the price.", "最初に2つのお店で調べたよ。値段に満足したんだ。")];
-      if (/used it yet/.test(prompt)) return [teacherStory("I got a new bag, and I use it every day.", "私は新しいバッグを買って、毎日使っているよ。", "It has room for my books. It's easy to carry.", "本を入れる場所があるんだ。持ち運びやすいよ。")];
-      if (/how long.*work/.test(prompt)) return [teacherStory("It takes about twenty minutes to get to work.", "私は職場に着くまで20分くらいかかるよ。", "I usually take the bus. I read a little on the way.", "いつもバスに乗るよ。途中で少し本を読むんだ。")];
-      if (/how often/.test(prompt)) return [teacherStory("I usually do it a little every day.", "私は普段、毎日少しずつやるよ。", "I don't spend a long time on it. A few minutes is fine.", "長い時間はかけないんだ。数分で十分だよ。")];
-      if (/when.*free/.test(prompt)) return [teacherStory("I'm usually free on Sunday afternoons.", "私は普段、日曜の午後が空いているよ。", "I often leave that time open so I can see friends.", "友人に会えるように、その時間はよく空けておくんだ。")];
-      if (/alone|with friends|with others/.test(prompt)) return [teacherStory("I like doing it with a friend.", "私は友人と一緒にするのが好きだよ。", "It's nice to have someone to talk to.", "話せる相手がいるのはいいよね。")];
-      if (/online|in stores/.test(prompt)) return [teacherStory("I prefer shopping in stores.", "私はお店で買うほうが好きだよ。", "I like seeing things before I buy them.", "買う前に実物を見るのが好きなんだ。")];
-      if (/what.*goal|what.*practice|what.*learn/.test(prompt)) return [teacherStory("I'd like to keep learning new things too.", "私も新しいことを学び続けたいよ。", "I try to listen carefully to other people. I learn a lot that way.", "人の話をよく聞くようにしているんだ。そうするとたくさん学べるよ。")];
-      // The authored answers already fit this question; borrow one for the teacher.
-      const answers = node.choices.filter((choice) => !choice.action && !choice.mismatch).map((choice) => {
-        const en = choice.text.replace(/\s*(?:How|What) about you\?\s*$/i, "").trim();
-        const ja = choice.ja.replace(/そっちは？|先生はどう？/g, "").trim();
-        if (!en || en.endsWith("?")) return null;
-        const past = /\b(was|were|went|had|did|cooked|watched|bought|met|tried|finished)\b/i.test(en);
-        return teacherStory(en, ja, past ? "That's what happened to me. I still remember it.": "That's how it is for me. Everyone is a little different.", past ? "私にはそういうことがあったんだ。今も覚えているよ。" : "私の場合はそうなんだ。人によって少しずつ違うよね。", /problem|mistake|nervous|disappointed|not happy/.test(en.toLowerCase()) ? "tough" : "neutral");
-      }).filter(Boolean);
-      return answers.length ? answers : profile.stories;
-    }
-
-    function teacherQuestions(profile, reactionId, story = null, answers = profile.stories) {
-      const about = story ? response("Can you tell me more about that?", "もう少し詳しく教えてくれる？", reactionId, "", {
-        action: "ask", stories: [{ ...story, en: story.detailEn, ja: story.detailJa }]
-      }) : response("What about you?", "先生はどう？", reactionId, "", { action: "ask", stories: answers });
-      const group = Object.keys(teacherChatProfiles).find((key) => teacherChatProfiles[key] === profile);
-      const extra = teacherCuriosity[group];
-      return [about, response("Do you have any recommendations?", "何かおすすめはある？", reactionId, "", { action: "ask", stories: [{ ...profile.tip, tone: "neutral" }] }),
-        ...(extra ? [response(extra.text, extra.ja, reactionId, "", { action: "ask", stories: [extra.story] })] : [])];
+    function practiceConversations() {
+      return conversations.filter((c) => !isBuiltInConversation(c) || reviewedDialogues[c.id]);
     }
 
     function setTeacherStory(node, story, next, receipt = null) {
@@ -1800,54 +1690,66 @@
       node.resumeNext = next;
       node.partnerEn = (receipt ? receipt.en + " " : "") + story.en;
       node.partnerJa = (receipt ? receipt.ja + " " : "") + story.ja;
-      const numbers = story.tone === "tough" ? [251, 252, 254, 259, 260] : story.tone === "neutral" ? [251, 252, 255, 256, 260] : [251, 252, 253, 255, 256, 258, 260];
-      node.choices = suppliedLibrary.filter((entry) => numbers.includes(entry.number)).map((entry) => response(entry.examples[0].text, entry.examples[0].ja, next));
-      node.questions = teacherQuestions(node.profile, node.id, story);
+      node.simplePartnerEn = story.detailEn || story.en;
+      node.simplePartnerJa = story.detailJa || story.ja;
+      const replies = story.tone === "tough" ? [
+        ["I see.", "そうなんだ。"],
+        ["That sounds hard.", "それは大変そうだね。", ["Thanks.", "ありがとう。"]],
+        ["I'm sorry to hear that.", "それは大変だね。", ["Thanks.", "ありがとう。"]]
+      ] : story.tone === "neutral" ? [
+        ["I see.", "なるほど。"],
+        ["That makes sense.", "なるほどね。"],
+        ["That's interesting.", "それは興味深いね。"]
+      ] : [
+        ["I see.", "そうなんだ。"],
+        ["That sounds nice.", "それはいいね。"],
+        ["That's interesting.", "それは興味深いね。"]
+      ];
+      node.choices = replies.map(([text, ja, receipt]) => response(text, ja, next, "", {
+        core: text, reactionEn: receipt?.[0], reactionJa: receipt?.[1]
+      }));
+      // A detail is a one-time follow-up, not another copy of the same answer.
+      node.questions = story.isDetail || !story.detailEn ? [] : [
+        response("Can you tell me more about that?", "もう少し詳しく教えてくれる？", node.id, "", {
+          core: "Can you tell me more about",
+          action: "ask",
+          stories: [{ ...story, en: story.detailEn, ja: story.detailJa, tone: "neutral", isDetail: true }]
+        })
+      ];
     }
 
     function buildSimulation(c) {
-      const nodes = buildBaseSimulation(c);
-      // Add conversational beats at runtime without rewriting the user's saved scripts.
-      if (!isBuiltInConversation(c) || !(c.continuousTopic || c.id === "morning") || !suppliedLibrary.length) return nodes;
-      const group = c.topicGroup || "weekend";
-      const profile = teacherChatProfiles[group] || teacherChatProfiles.hobbies;
-      for (const [id, node] of Object.entries(nodes)) {
+      const turns = isBuiltInConversation(c) && reviewedDialogues[c.id];
+      if (!turns) return buildBaseSimulation(c);
+      const nodes = {};
+      turns.forEach((turn, index) => {
+        const id = "turn" + index;
+        const next = index + 1 < turns.length ? "turn" + (index + 1) : null;
         const reactionId = "reaction-" + id;
-        node.kind = "conversation";
-        node.profile = profile;
-        node.reactionId = reactionId;
-        node.questions = teacherQuestions(profile, reactionId, null, teacherAnswers(node, profile));
-        const reaction = { id: reactionId, kind: "reaction", profile };
-        setTeacherStory(reaction, profile.stories[0], node.choices[0]?.next ?? null);
+        const answer = teacherStory(...turn.teacher, turn.tone || "positive");
+        nodes[id] = {
+          kind: "conversation", reviewed: true,
+          partnerEn: turn.prompt[0], partnerJa: turn.prompt[1],
+          simplePartnerEn: turn.explain[0], simplePartnerJa: turn.explain[1],
+          openings: index === 0 ? [turn.prompt, ...turn.openings] : [],
+          teacherAnswer: answer, reactionId,
+          choices: turn.replies.map(([text, ja, core, receipt]) => response(text, ja, next, "", {
+            core, reactionEn: receipt[0], reactionJa: receipt[1]
+          })),
+          questions: [response("What about you?", "先生はどう？", reactionId, "", {
+            core: "What about you", action: "ask", stories: [answer]
+          })]
+        };
+        const reaction = { id: reactionId, kind: "reaction", reviewed: true };
+        setTeacherStory(reaction, answer, next);
         nodes[reactionId] = reaction;
-      }
+      });
       return nodes;
     }
 
     function teacherReceipt(option, node) {
-      const text = option.text.toLowerCase();
-      let lines, tone = "neutral";
-      if (node.kind === "reaction") {
-        if (/sorry|tough/.test(text)) lines = [["Thanks. I'm okay now.", "ありがとう。今は大丈夫だよ。"], ["Thanks for listening.", "聞いてくれてありがとう。"]];
-        else if (/really\?/.test(text)) lines = [["Yes, really!", "うん、本当だよ！"], ["Yes. I remember it well.", "うん。よく覚えているよ。"]];
-        else lines = [["Yeah.", "うん。"], ["Thanks for listening.", "聞いてくれてありがとう。"], ["That's how I feel, anyway.", "まあ、私はそう感じるんだ。"]];
-      } else if (/don't think so|not sure about that|see it differently|see your point|maybe you're right/.test(text)) {
-        lines = [["That's fair. I see what you mean.", "そうだね。言いたいことはわかるよ。"], ["Hmm, that's a good point.", "うーん、それはいい指摘だね。"]];
-      } else if (/haven't decided|not sure|not yet|see how it goes/.test(text)) {
-        lines = [["That's okay. There's no rush.", "大丈夫。急がなくていいよ。"], ["I see. You can think about it.", "なるほど。ゆっくり考えていいよ。"]];
-      } else if (/busy|stressed|stressful|tired|not.*free time|haven't.*free time/.test(text)) {
-        tone = "tough";
-        lines = [["Hmm. Sounds like you need a break.", "うーん、休憩が必要そうだね。"], ["I know that feeling. I hope you can rest soon.", "その気持ちはわかるよ。早く休めるといいね。"]];
-      } else if (/mistake|forgot|accidentally|went wrong|problem|nervous|disappointed|frustrated|worried|too salty|too small|harder|challenging|not happy|didn't enjoy|didn't turn out/.test(text)) {
-        tone = "tough";
-        lines = [["Oh, that sounds hard.", "ああ、それは大変そうだね。"], ["Hmm. I know that feeling.", "うーん、その気持ちはわかるよ。"], ["I'm sorry to hear that.", "それは残念だったね。"]];
-      } else if (/fun|great|happy|proud|finished|enjoy|love|went well|going well/.test(text) && !/not happy|didn't enjoy/.test(text)) {
-        tone = "positive";
-        lines = [["Oh, nice!", "おお、いいね！"], ["That's good to hear.", "それを聞けてうれしいよ。"], ["I'm glad to hear that.", "それはよかったね。"]];
-      } else {
-        lines = [["Ah, I see.", "ああ、なるほど。"], ["Oh, really?", "へえ、そうなんだ。"], ["Hmm, I see what you mean.", "うーん、言いたいことはわかるよ。"], ["Thanks for telling me.", "教えてくれてありがとう。"]];
-      }
-      return { ...pickTeacherLine(lines.map(([en, ja]) => ({ en, ja }))), tone };
+      if (!node.reviewed || node.kind !== "conversation" || !option.reactionEn) return null;
+      return { en: option.reactionEn, ja: option.reactionJa };
     }
 
     function recordPracticeReply(option) {
@@ -1917,8 +1819,7 @@
     }
 
     function pickNextTopic(current) {
-      const everyday = conversations.filter((c) => c.id !== current.id && !["morning", "cafe", "meeting"].includes(c.id));
-      const pool = everyday.length ? everyday : conversations.filter((c) => c.id !== current.id);
+      const pool = practiceConversations().filter((c) => c.id !== current.id);
       if (!pool.length) return current.id;
       const recent = new Set(recentTopics.slice(-3));
       const fresh = pool.filter((c) => !recent.has(c.id));
@@ -1932,23 +1833,21 @@
     }
 
     function topicBridge(previous, next) {
-      const from = previous?.topicGroup || (["morning", "cafe"].includes(previous?.id) ? "food" : "");
-      const to = next.topicGroup;
       const bridges = {
-        "food:travel": ["I like trying food on a trip.", "旅行で食べ物を試すのが好きなんだ。"],
-        "food:weekend": ["Let's talk about the weekend.", "週末のことを話そう。"],
-        "weekend:travel": ["I'd like to take a trip too.", "旅行にも行きたいな。"],
-        "weekend:hobbies": ["It's nice to have some free time.", "自由な時間があるのっていいよね。"],
-        "hobbies:movies": ["I like relaxing with a movie sometimes.", "ときどき映画を観てゆっくりするのも好きなんだ。"],
-        "movies:hobbies": ["Movies are a nice way to relax.", "映画はいい気分転換になるよね。"],
-        "exercise:weather": ["It's nice to go outside on a sunny day.", "晴れた日に外に出るのはいいよね。"],
-        "travel:food": ["I like trying new food on a trip.", "旅行で新しい食べ物を試すのが好きなんだ。"]
+        "topic-food": ["Let's talk about food.", "食べ物の話をしよう。"],
+        "source-scene-home-cooking": ["How about talking about cooking?", "料理の話はどう？"],
+        "topic-work": ["Let's talk about work for a moment.", "少し仕事の話をしよう。"],
+        "topic-weekend": ["Let's talk about this weekend.", "今週末の話をしよう。"],
+        "source-scene-last-weekend": ["How about talking about last weekend?", "先週末の話はどう？"],
+        "topic-hobbies": ["Let's talk about hobbies.", "趣味の話をしよう。"],
+        "topic-movies": ["How about talking about movies?", "映画の話はどう？"],
+        "topic-travel": ["Let's talk about travel.", "旅行の話をしよう。"],
+        "topic-weather": ["How about talking about the weather?", "天気の話はどう？"],
+        "topic-shopping": ["Let's talk about shopping.", "買い物の話をしよう。"],
+        "topic-exercise": ["How about talking about exercise?", "運動の話はどう？"],
+        "source-scene-english-goals": ["Let's talk about learning English.", "英語の勉強の話をしよう。"]
       };
-      return bridges[from + ":" + to] || shuffle([
-        ["By the way, can I ask you something?", "ところで、ちょっと聞いてもいい？"],
-        ["Oh, I have another question.", "あ、もうひとつ聞きたいことがあるんだ。"],
-        ["Can I ask you something else?", "別のことも聞いていい？"]
-      ])[0];
+      return bridges[next.id] || ["Can I ask you something else?", "別のことも聞いていい？"];
     }
 
     function acknowledgeEnding(c, ending) {
@@ -1977,7 +1876,8 @@
       runVersion += 1;
       const previous = currentConversation();
       const previousRole = practice.partnerRole || previous?.role;
-      const c = conversations.find((item) => item.id === id) || conversations.find((item) => item.id === pickStartConversation());
+      const pool = practiceConversations();
+      const c = pool.find((item) => item.id === id) || pool.find((item) => item.id === pickStartConversation());
       practice = { conversationId: c?.id || null, partnerRole: keepHistory ? previousRole || c?.role : c?.role, nodeId: "turn0", waiting: false, completed: false, results: [], log: [], repaired: false, options: [], answersSinceShare: 0, teacherStoryCount: 0 };
       if (c) {
         if (!keepHistory) localStorage.setItem(LAST_START_KEY, c.id);
@@ -2000,13 +1900,15 @@
       }
       simulationNodes = buildSimulation(c);
       if (simulationNodes.turn0 && isBuiltInConversation(c)) {
-        const variants = c.openings || openingVariants[c.id] || [];
+        const variants = simulationNodes.turn0.openings || c.openings || openingVariants[c.id] || [];
         const lastOpening = openingHistory.get(c.id);
         const fresh = variants.filter(([en]) => en !== lastOpening);
         const opening = shuffle(fresh.length ? fresh : variants)[0];
         if (opening) {
-          simulationNodes.turn0.simplePartnerEn = simulationNodes.turn0.partnerEn;
-          simulationNodes.turn0.simplePartnerJa = simulationNodes.turn0.partnerJa;
+          if (!simulationNodes.turn0.reviewed) {
+            simulationNodes.turn0.simplePartnerEn = simulationNodes.turn0.partnerEn;
+            simulationNodes.turn0.simplePartnerJa = simulationNodes.turn0.partnerJa;
+          }
           [simulationNodes.turn0.partnerEn, simulationNodes.turn0.partnerJa] = opening;
           openingHistory.set(c.id, opening[0]);
         }
@@ -2037,7 +1939,9 @@
         seen.add(key);
         return true;
       });
-      const helpers = commonReplies.filter((reply) => !seen.has(normalize(reply.text)))
+      const helpers = commonReplies.filter((reply) => !seen.has(normalize(reply.text))
+        && (!node.reviewed || ["Could you say that again?", "What do you mean?", "Could we talk about something else?", ...(node.kind === "conversation" ? ["Let me think."] : [])].includes(reply.text))
+        && !(node.reviewed && node.story?.isDetail && reply.action === "explain"))
         .map((reply) => ({ ...reply, next: practice.nodeId }));
       const questions = (node.questions || []).map(prepareLearningReply).filter((reply) => !seen.has(normalize(reply.text)) && findCorePatterns(reply.text, reply.core || "").length);
       // Sample content before shuffling positions; no reply owns a fixed slot.
@@ -2145,7 +2049,7 @@
             appendMessage("partner", node.partnerEn, node.partnerJa);
           } else if (option.action === "explain") {
             practice.repaired = true;
-            appendMessage("partner", node.story?.detailEn || "I mean: " + (node.simplePartnerEn || node.partnerEn), node.story?.detailJa || "聞きたいのは、" + (node.simplePartnerJa || node.partnerJa));
+            appendMessage("partner", node.simplePartnerEn || node.partnerEn, node.simplePartnerJa || node.partnerJa);
           } else {
             appendMessage("partner", option.reactionEn, option.reactionJa);
           }
@@ -2167,27 +2071,17 @@
           return;
         }
         recordPracticeReply(option);
-        const receipt = node.kind && !option.reactionEn ? teacherReceipt(option, node) : null;
-        if (node.kind === "conversation") {
-          practice.answersSinceShare = (practice.answersSinceShare || 0) + 1;
-          const shouldShare = practice.answersSinceShare >= 2 || (!practice.teacherStoryCount && option.next === null) || Math.random() < 0.4;
-          if (shouldShare) {
-            let stories = node.profile.stories;
-            if (receipt?.tone === "tough") {
-              const empathetic = stories.filter((story) => story.tone !== "positive");
-              stories = empathetic.length ? empathetic : [teacherStory("I've had days like that too. It's not always easy.", "私にもそんな日があるよ。いつも簡単とは限らないね。", "When I get stuck, I slow down and ask a friend for help.", "困ったときは落ち着いて、友人に助けを求めるんだ。", "tough")];
-            }
-            const story = pickTeacherLine(stories);
-            const reaction = simulationNodes[node.reactionId];
-            setTeacherStory(reaction, story, option.next, receipt);
-            reaction.pendingEnding = option.next === null ? option : null;
-            practice.answersSinceShare = 0;
-            practice.teacherStoryCount = (practice.teacherStoryCount || 0) + 1;
-            practice.nodeId = node.reactionId;
-            practice.waiting = false;
-            showTurn();
-            return;
-          }
+        const receipt = teacherReceipt(option, node);
+        if (node.kind === "conversation" && node.reviewed) {
+          const reaction = simulationNodes[node.reactionId];
+          setTeacherStory(reaction, node.teacherAnswer, option.next, receipt);
+          reaction.pendingEnding = option.next === null ? option : null;
+          practice.answersSinceShare = 0;
+          practice.teacherStoryCount = (practice.teacherStoryCount || 0) + 1;
+          practice.nodeId = node.reactionId;
+          practice.waiting = false;
+          showTurn();
+          return;
         }
         if (option.reactionEn) appendMessage("partner", option.reactionEn, option.reactionJa);
         else if (receipt) appendMessage("partner", receipt.en, receipt.ja);
@@ -2234,6 +2128,17 @@
       }, 650);
     }
 
+    function editableConversationTurns(c) {
+      if (!isBuiltInConversation(c) || !reviewedDialogues[c.id]) return c.turns.map((t) => ({ ...t }));
+      const nodes = buildSimulation(c);
+      return Object.values(nodes).map((node) => {
+        const [first, ...alternatives] = node.choices.map(({ text, ja, core, reactionEn, reactionJa }) => ({ text, ja, core, reactionEn, reactionJa }));
+        return { partnerEn: node.partnerEn, partnerJa: node.partnerJa,
+          replyEn: first.text, replyJa: first.ja, core: first.core,
+          reactionEn: first.reactionEn, reactionJa: first.reactionJa, alternatives };
+      });
+    }
+
     function openConversationEditor(id) {
       const c = conversations.find((item) => item.id === id);
       $("#conversationId").value = c?.id || "";
@@ -2243,7 +2148,7 @@
       $("#closingEnglishInput").value = c?.closingEn || "";
       $("#closingJapaneseInput").value = c?.closingJa || "";
       $("#deleteConversationBtn").hidden = !c;
-      conversationDraft = c ? c.turns.map((t) => ({ ...t })) : [{ partnerEn: "", partnerJa: "", replyEn: "", replyJa: "" }];
+      conversationDraft = c ? editableConversationTurns(c) : [{ partnerEn: "", partnerJa: "", replyEn: "", replyJa: "" }];
       renderTurnEditor();
       setView("conversationView");
       $("#conversationTitleInput").focus();

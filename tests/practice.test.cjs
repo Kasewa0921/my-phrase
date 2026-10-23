@@ -62,15 +62,19 @@ function loadApp(saved = {}, seed = 12345) {
   element('#categoryFilter').value = 'all';
   element('#statusFilter').value = 'all';
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-library.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'beginner-dialogues.js'), 'utf8'), context);
   vm.runInContext(source + `
     globalThis.api = {
       conversations: () => conversations,
       legacyTopics: () => legacyTopicConversations,
       topics: () => topicConversations,
+      active: practiceConversations,
+      reviewed: () => reviewedDialogues,
+      editableTurns: editableConversationTurns,
       practice: () => practice,
       nodes: () => simulationNodes,
       setPractice: value => { practice = value; },
-      buildSimulation, buildOptions, findCorePatterns, startConversation, pickStartConversation, teacherReceipt,
+      buildSimulation, buildBaseSimulation, buildOptions, findCorePatterns, startConversation, pickStartConversation, teacherReceipt,
       chooseReply, showMessageTranslation, hideMessageTranslation, formatEnglish, init,
       setReplyLanguage, paintReplyOptions, replyLanguage: () => replyLanguage,
       helpers: () => commonReplies,
@@ -91,7 +95,7 @@ function loadApp(saved = {}, seed = 12345) {
 test('Every built-in node samples four unique phrase replies with varied content and positions', () => {
   const { api } = loadApp();
   let states = 0;
-  for (const c of api.conversations()) {
+  for (const c of api.active()) {
     const nodes = api.buildSimulation(c);
     for (const [id, node] of Object.entries(nodes)) {
       states++;
@@ -135,7 +139,7 @@ test('Startup varies across all scenarios and excludes the previous session star
     starts.add(id);
     previous = id;
   }
-  assert.equal(starts.size, api.conversations().length);
+  assert.equal(starts.size, api.active().length);
   const reloaded = loadApp(Object.fromEntries(storage));
   assert.notEqual(reloaded.api.pickStartConversation(), previous);
 });
@@ -285,7 +289,7 @@ test('Japanese choice text is escaped and an absent translation safely falls bac
 
 test('Each built-in opening has at least three variants without back-to-back repetition', () => {
   const { api } = loadApp();
-  for (const c of api.conversations()) {
+  for (const c of api.active()) {
     const openings = new Set();
     let last;
     for (let i = 0; i < 30; i++) {
@@ -301,19 +305,141 @@ test('Each built-in opening has at least three variants without back-to-back rep
 
 test('Default topic language is short and every reply has a reusable phrase', () => {
   const { api } = loadApp();
-  for (const c of api.topics()) {
-    assert(c.beginner);
-    for (const t of c.turns) {
-      assert(t.partnerEn.split(/\s+/).length <= 12, t.partnerEn);
-      const replies = [{ text: t.replyEn }, ...t.alternatives];
-      assert.equal(replies.length, 5);
-      for (const reply of replies) {
-        assert(reply.text.split(/\s+/).length <= 10, reply.text);
-        assert(api.findCorePatterns(reply.text).length, reply.text);
-        assert(!/unwind|convenience|unexpected|set aside|catch up|routine|stressful|recommendations/i.test(reply.text));
+  assert.equal(Object.keys(api.reviewed()).length, 12);
+  for (const c of api.active()) {
+    const script = api.reviewed()[c.id];
+    assert.equal(script.length, 3);
+    for (const turn of script) {
+      const teacherLines = [turn.prompt[0], turn.explain[0], turn.teacher[0], turn.teacher[2], ...(turn.openings || []).map(o => o[0])];
+      for (const line of teacherLines) {
+        for (const sentence of line.split(/[.!?]+/).filter(s => s.trim())) {
+          assert(sentence.trim().split(/\s+/).length <= 14, line);
+        }
+        assert(!/recommendations|convenience|challenging|unexpected|unwind|routine|set aside/i.test(line));
+      }
+      assert.equal(turn.replies.length, 5);
+      for (const [text, ja, core, receipt] of turn.replies) {
+        assert(text.split(/\s+/).length <= 10, text);
+        assert(ja && receipt[0] && receipt[1]);
+        assert(api.findCorePatterns(text, core).length, text);
       }
     }
   }
+});
+
+test('Every authored learner reply gets its own acknowledgement and the matching teacher answer', () => {
+  const { api, flush } = loadApp();
+  let checked = 0;
+  for (const c of api.active()) {
+    for (const [i, turn] of api.reviewed()[c.id].entries()) {
+      for (const [text, ja, , receipt] of turn.replies) {
+        api.startConversation(c.id);
+        const state = api.practice();
+        state.nodeId = 'turn' + i;
+        const node = api.nodes()[state.nodeId];
+        state.options = [node.choices.find(choice => choice.text === text)];
+        api.chooseReply(0, new Element());
+        assert(flush());
+        const answer = api.nodes()[api.practice().nodeId];
+        assert.equal(answer.partnerEn, receipt[0] + ' ' + turn.teacher[0], `${c.id}/${i}/${text}`);
+        assert.equal(answer.partnerJa, receipt[1] + ' ' + turn.teacher[1]);
+        assert.equal(api.practice().log[0].ja, ja);
+        assert.equal(answer.resumeNext, i === 2 ? null : 'turn' + (i + 1));
+        checked++;
+      }
+    }
+  }
+  assert.equal(checked, 180);
+});
+
+test('Every reciprocal question and one-time follow-up stays on its authored subject', () => {
+  const { api, flush } = loadApp();
+  for (const c of api.active()) {
+    for (const [i, turn] of api.reviewed()[c.id].entries()) {
+      api.startConversation(c.id);
+      api.practice().nodeId = 'turn' + i;
+      const base = api.nodes()[api.practice().nodeId];
+      assert.equal(base.questions.length, 1);
+      assert.equal(base.questions[0].text, 'What about you?');
+      api.practice().options = [base.questions[0]];
+      api.chooseReply(0, new Element());
+      assert(flush());
+      const answer = api.nodes()[api.practice().nodeId];
+      assert.equal(answer.partnerEn, turn.teacher[0]);
+      assert.equal(answer.questions.length, 1);
+      api.practice().options = [answer.questions[0]];
+      api.chooseReply(0, new Element());
+      assert(flush());
+      const detail = api.nodes()[api.practice().nodeId];
+      assert.equal(detail.partnerEn, turn.teacher[2]);
+      assert.equal(detail.partnerJa, turn.teacher[3]);
+      assert.equal(detail.questions.length, 0);
+      assert(!detail.choices.some(option => option.text === 'That sounds nice.'));
+      assert(!api.practice().options.some(option => option.action === 'ask'));
+      assert(api.practice().options.some(option => !option.action));
+      api.practice().options = [detail.choices[0]];
+      api.chooseReply(0, new Element());
+      assert(flush());
+      assert.equal(api.practice().nodeId, i === 2 ? null : 'turn' + (i + 1));
+      assert.equal(api.practice().completed, i === 2);
+    }
+  }
+});
+
+test('Clarification uses a simpler authored question and does not invent a new topic', () => {
+  const { api, element, flush } = loadApp();
+  for (const c of api.active()) {
+    for (const [i, turn] of api.reviewed()[c.id].entries()) {
+      api.startConversation(c.id);
+      api.practice().nodeId = 'turn' + i;
+      api.practice().options = [{ ...api.helpers().find(o => o.action === 'explain'), next: 'turn' + i }];
+      api.chooseReply(0, new Element());
+      assert(flush());
+      assert.equal(api.practice().nodeId, 'turn' + i);
+      const teacher = element('#chatLog').children.at(-1);
+      assert.equal(teacher.children[1].children[1].children[0].children[0].innerHTML, api.formatEnglish(turn.explain[0]));
+      assert.notEqual(turn.explain[0], turn.prompt[0]);
+    }
+  }
+});
+
+test('Only reviewed defaults enter random practice; older data and user edits are kept', () => {
+  const original = loadApp();
+  assert.equal(original.api.active().length, 12);
+  const saved = plain(original.api.conversations());
+  const old = saved.find(c => c.id === 'source-scene-mistakes');
+  old.turns[0].partnerEn = 'My own question?';
+  const removed = saved.filter(c => c.id !== 'source-scene-home-cooking');
+  original.storage.set(conversationKey, JSON.stringify(removed));
+  const app = loadApp(Object.fromEntries(original.storage));
+  assert(app.api.conversations().some(c => c.id === 'source-scene-design'));
+  assert(!app.api.active().some(c => c.id === 'source-scene-design'));
+  assert(app.api.active().some(c => c.id === old.id));
+  assert(!app.api.active().some(c => c.id === 'source-scene-home-cooking'));
+  app.api.startConversation(old.id);
+  assert.equal(app.api.nodes().turn0.partnerEn, 'My own question?');
+  assert(!app.api.nodes().turn0.reviewed);
+  assert.equal(app.api.phrases().length, original.api.phrases().length);
+});
+
+test('The conversation editor uses the revised spoken lines, while custom scripts stay unchanged', () => {
+  const { api } = loadApp();
+  const c = api.conversations().find(c => c.id === 'source-scene-home-cooking');
+  const draft = api.editableTurns(c);
+  assert.equal(draft.length, 6);
+  assert.equal(draft[0].partnerEn, api.reviewed()[c.id][0].prompt[0]);
+  assert.equal(draft[1].partnerEn, 'I made soup last night.');
+  assert.equal(draft[2].partnerEn, 'How often do you cook?');
+  const edited = { ...plain(c), turns: plain(draft) };
+  edited.turns[0].partnerEn = 'My revised cooking question?';
+  const editedNodes = api.buildSimulation(edited);
+  assert.equal(editedNodes.turn0.partnerEn, 'My revised cooking question?');
+  assert.equal(editedNodes.turn1.partnerEn, 'I made soup last night.');
+  assert.equal(editedNodes.turn2.partnerEn, 'How often do you cook?');
+  assert.equal(editedNodes.turn0.choices[0].next, 'turn1');
+  const custom = plain(c);
+  custom.turns[0].partnerEn = 'My own question?';
+  assert.deepEqual(plain(api.editableTurns(custom)), custom.turns);
 });
 
 test('Old unedited defaults migrate, while customized content and learning history remain', () => {
@@ -391,7 +517,7 @@ test('Sixty consecutive topic sets progress naturally and keep chat history boun
     assert.equal(element('#replyOptions').children.length, 4);
     assert(element('#chatLog').children.length <= 60);
   }
-  assert(new Set(topics).size >= 20);
+  assert(new Set(topics).size >= 10);
 });
 
 test('Translation still replaces English in the same bubble and restores red phrase markup', () => {
@@ -474,21 +600,22 @@ test('What about you gets an answer to the cooking question, not an unrelated an
     api.chooseReply(0, new Element());
     assert(flush());
     const answer = api.nodes()[api.practice().nodeId];
-    assert(/cooked soup|made pasta/i.test(answer.partnerEn));
+    assert.equal(answer.partnerEn, 'I made soup last night.');
     assert(!/cafe|reading|guitar/i.test(answer.partnerEn));
   }
 });
 
-test('Advice can be acknowledged without treating it as happy news', () => {
+test('Unrelated recommendation questions are not mixed into every topic', () => {
   const { api, flush } = loadApp();
   api.startConversation('source-scene-home-cooking');
-  const question = api.nodes().turn0.questions.find(option => option.text === 'Do you have any recommendations?');
+  assert(!api.nodes().turn0.questions.some(option => /recommend/.test(option.text)));
+  const question = api.nodes().turn0.questions.find(option => option.text === 'What about you?');
   api.practice().options = [question];
   api.chooseReply(0, new Element());
   assert(flush());
   const node = api.nodes()[api.practice().nodeId];
-  assert.equal(node.story.tone, 'neutral');
-  assert(node.choices.some(option => option.text === 'That makes sense.'));
+  assert.equal(node.story.en, 'I made soup last night.');
+  assert(node.choices.some(option => option.text === 'That sounds nice.'));
   assert(!node.choices.some(option => option.text === "I'm glad to hear that."));
 });
 
@@ -535,22 +662,18 @@ test('At most two direct answers pass before the teacher shares a statement', ()
   }
 });
 
-test('Teacher acknowledgements are varied and fit difficult, uncertain and happy replies', () => {
+test('Teacher acknowledgements come from the selected reply, not a keyword guess', () => {
   const { api } = loadApp();
-  const base = { kind: 'conversation' };
-  const negative = ['I made a mistake.', 'I was a little disappointed.', "I've been busy with work."];
-  for (const text of negative) {
-    for (let i = 0; i < 8; i++) {
-      const receipt = api.teacherReceipt({ text }, base);
-      assert.equal(receipt.tone, 'tough');
-      assert(!/nice|good to hear|glad/.test(receipt.en.toLowerCase()));
-    }
+  api.startConversation('topic-work');
+  const work = api.nodes().turn0;
+  for (const option of work.choices) {
+    const receipt = api.teacherReceipt(option, work);
+    assert.equal(receipt.en, option.reactionEn);
+    assert.equal(receipt.ja, option.reactionJa);
   }
-  assert.equal(api.teacherReceipt({ text: 'I had fun.' }, base).tone, 'positive');
-  assert.equal(api.teacherReceipt({ text: "I haven't decided yet." }, base).tone, 'neutral');
-  const lines = new Set();
-  for (let i = 0; i < 12; i++) lines.add(api.teacherReceipt({ text: 'I cooked pasta.' }, base).en);
-  assert(lines.size >= 3);
+  assert.equal(api.teacherReceipt(work.choices.find(o => o.text === "I'm tired today."), work).en, 'I hope you can rest later.');
+  assert.equal(api.teacherReceipt({ text: 'I am not tired.' }, work), null);
+  assert.equal(api.teacherReceipt({ text: 'That sounds nice.' }, { kind: 'reaction', reviewed: true }), null);
 });
 
 test('Runtime conversation beats do not overwrite customized scripts or saved content', () => {
@@ -623,7 +746,7 @@ test('Source-based scenes contain only completed source examples and have cohere
   for (const c of api.suppliedConversations()) {
     assert.equal(c.role, '先生');
     assert(c.turns.length >= 2);
-    const nodes = api.buildSimulation(c);
+    const nodes = api.buildBaseSimulation(c);
     for (let i = 0; i < c.turns.length; i++) {
       const node = nodes['turn' + i];
       for (const reply of node.choices) {
