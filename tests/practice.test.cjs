@@ -375,6 +375,7 @@ test('Every reciprocal question and one-time follow-up stays on its authored sub
       assert.equal(detail.partnerJa, turn.teacher[3]);
       assert.equal(detail.questions.length, 0);
       assert(!detail.choices.some(option => option.text === 'That sounds nice.'));
+      assert(!detail.choices.some(option => option.text === 'That makes sense.'));
       assert(!api.practice().options.some(option => option.action === 'ask'));
       assert(api.practice().options.some(option => !option.action));
       api.practice().options = [detail.choices[0]];
