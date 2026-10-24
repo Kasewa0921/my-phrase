@@ -41,7 +41,8 @@ class Element {
   addEventListener(key, handler) { this.events[key] = handler; }
 }
 
-function loadApp(saved = {}, seed = 12345) {
+// Keep the previous dialogue fixtures for regression checks; live tests load the new scene bank too.
+function loadApp(saved = {}, seed = 12345, workbook = false) {
   const storage = new Map(Object.entries(saved));
   const elements = new Map();
   const timers = new Map();
@@ -69,6 +70,7 @@ function loadApp(saved = {}, seed = 12345) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-library.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-additions.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'beginner-dialogues.js'), 'utf8'), context);
+  if (workbook) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'workbook-scenes.js'), 'utf8'), context);
   vm.runInContext(source + `
     globalThis.api = {
       conversations: () => conversations,
@@ -87,7 +89,10 @@ function loadApp(saved = {}, seed = 12345) {
       supplied: () => suppliedLibrary,
       additions: () => additionalLibrary,
       suppliedConversations: () => suppliedConversations,
-      phrases: () => phrases
+      phrases: () => phrases,
+      workbook: () => workbookScenes,
+      coverage: () => practiceCoverage,
+      renderOptions, pickNextTopic, getCategories
     };
   `, context);
   return { api: context.api, storage, element, flush: () => {
@@ -928,3 +933,5 @@ test('Topic changes keep the choices visible and require no restart button', () 
   assert.equal(element('#replyOptions').children.length, 4);
   assert.equal(element('#replyOptions').hidden, false);
 });
+
+require('./workbook-checks.cjs')({test, assert, fs, path, loadApp, plain, Element, conversationKey});

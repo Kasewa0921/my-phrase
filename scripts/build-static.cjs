@@ -9,6 +9,7 @@ const files = [
   'phrase-library.js',
   'phrase-additions.js',
   'beginner-dialogues.js',
+  'workbook-scenes.js',
   'assets/teacher-cutout.png',
   'assets/learner-cutout.png'
 ];
@@ -19,6 +20,7 @@ new vm.Script(script, { filename: 'index.html' });
 new vm.Script(fs.readFileSync(path.join(root, 'phrase-library.js'), 'utf8'), { filename: 'phrase-library.js' });
 new vm.Script(fs.readFileSync(path.join(root, 'phrase-additions.js'), 'utf8'), { filename: 'phrase-additions.js' });
 new vm.Script(fs.readFileSync(path.join(root, 'beginner-dialogues.js'), 'utf8'), { filename: 'beginner-dialogues.js' });
+new vm.Script(fs.readFileSync(path.join(root, 'workbook-scenes.js'), 'utf8'), { filename: 'workbook-scenes.js' });
 
 // Refuse to publish unexpected files left in an existing build directory.
 function checkOutput(directory, prefix = '') {

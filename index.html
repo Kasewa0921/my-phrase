@@ -86,6 +86,8 @@
     .message-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: 50%; }
     .message-content { max-width: min(82%, 590px); min-width: 0; }
     .message-label { font-size: 11px; color: var(--muted); margin: 0 6px 5px; }
+    .scene-divider { display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin: 10px 0 4px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .scene-divider::before, .scene-divider::after { content: ""; height: 1px; background: #d9dbe1; flex: 1; }
     .message.user .message-label { text-align: right; }
     .message-line { display: flex; align-items: flex-end; gap: 10px; min-width: 0; }
     .message.user .message-line { justify-content: flex-end; }
@@ -322,6 +324,7 @@
   <script src="phrase-library.js"></script>
   <script src="phrase-additions.js"></script>
   <script src="beginner-dialogues.js"></script>
+  <script src="workbook-scenes.js"></script>
   <script>
     const STORAGE_KEY = "my-phrase-mvp-v1";
     const CONVERSATIONS_KEY = "my-phrase-conversations-v1";
@@ -330,9 +333,12 @@
     const SUPPLIED_LIBRARY_KEY = "my-phrase-supplied-library-v1";
     const PHRASE_REPLACEMENT_KEY = "my-phrase-workbook-replacement-20261024-v1";
     const PHRASE_BACKUP_KEY = "my-phrase-before-workbook-replacement-20261024-v1";
+    const WORKBOOK_SCENES_KEY = "my-phrase-workbook-scenes-20261025-v1";
+    const COVERAGE_KEY = "my-phrase-practice-coverage-20261025-v1";
     const suppliedLibrary = globalThis.PHRASE_LIBRARY || [];
     const additionalLibrary = globalThis.PHRASE_ADDITIONS || [];
     const reviewedDialogues = globalThis.BEGINNER_DIALOGUES || {};
+    const workbookScenes = globalThis.WORKBOOK_SCENES || [];
     const phraseKey = (text) => String(text).replace(/[‘’]/g, "'").trim().replace(/\s+/g, " ").toLowerCase();
     const suppliedExamples = new Map();
     for (const entry of [...suppliedLibrary, ...additionalLibrary]) {
@@ -899,7 +905,23 @@
       })).filter((c) => c.turns.length);
     }
 
+    const workbookConversations = workbookScenes.map((scene) => ({
+      id: "workbook-" + scene.id, title: scene.title, scene: scene.title, role: "先生",
+      workbook: true, continuousTopic: true, closingEn: "", closingJa: "",
+      turns: scene.turns.map((turn) => {
+        const choices = turn.replies.map(([number, text, ja, reactionEn, reactionJa]) => {
+          const entry = additionalLibrary.find((p) => p.number === number);
+          if (!entry) throw new Error("Missing workbook phrase: " + number);
+          return { text, ja, phraseId: entry.id, reactionEn, reactionJa };
+        });
+        const [first, ...alternatives] = choices;
+        return { partnerEn: turn.prompt[0], partnerJa: turn.prompt[1],
+          replyEn: first.text, replyJa: first.ja, phraseId: first.phraseId,
+          reactionEn: first.reactionEn, reactionJa: first.reactionJa, alternatives };
+      })
+    }));
     let conversations = loadConversations();
+    const practiceCoverage = loadPracticeCoverage();
     let topicQueue = [];
     let recentTopics = [];
     let practice = { conversationId: null, nodeId: null, waiting: false, completed: false, results: [], log: [], repaired: false, options: [] };
@@ -1487,7 +1509,13 @@
         }
         return c;
       });
-      if (saved && migrated) localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(items));
+      if (workbookConversations.length && !localStorage.getItem(WORKBOOK_SCENES_KEY)) {
+        const ids = new Set(items.map((c) => c.id));
+        if (!saved || items.length) items.push(...workbookConversations.filter((c) => !ids.has(c.id)));
+        migrated = true;
+        localStorage.setItem(WORKBOOK_SCENES_KEY, "1");
+      }
+      if (migrated) localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(items));
       return items.map((c) => ({ successStreak: 0, attempts: 0, status: "これから", ...c }));
     }
 
@@ -1496,14 +1524,44 @@
     }
 
     function isBuiltInConversation(c) {
-      return [...seedConversations, ...topicConversations, ...suppliedConversations].some((original) => c.id === original.id && sameConversationContent(c, original));
+      return [...seedConversations, ...topicConversations, ...suppliedConversations, ...workbookConversations].some((original) => c.id === original.id && sameConversationContent(c, original));
+    }
+
+    function loadPracticeCoverage() {
+      let saved;
+      try { saved = JSON.parse(localStorage.getItem(COVERAGE_KEY) || "{}"); } catch { saved = {}; }
+      const clean = (values, ids) => Object.fromEntries(ids.map((id) => {
+        const n = values?.[id];
+        return [id, Number.isSafeInteger(n) && n >= 0 && n <= 1e9 ? n : 0];
+      }));
+      const phraseIds = additionalLibrary.map((p) => p.id);
+      return { shown: clean(saved?.shown, phraseIds), used: clean(saved?.used, phraseIds),
+        scenes: clean(saved?.scenes, conversations.map((c) => c.id)) };
+    }
+
+    function savePracticeCoverage() {
+      localStorage.setItem(COVERAGE_KEY, JSON.stringify(practiceCoverage));
+    }
+
+    function balancedConversation(pool) {
+      if (!workbookConversations.length) return shuffle(pool)[0]?.id;
+      const ranks = (c) => {
+        const counts = [...new Set(c.turns.flatMap((t) => [t, ...(t.alternatives || [])].map((r) => r.phraseId)).filter(Boolean))]
+          .map((id) => practiceCoverage.shown[id] || 0);
+        return [counts.length ? Math.min(...counts) : practiceCoverage.scenes[c.id] || 0,
+          practiceCoverage.scenes[c.id] || 0, counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : 0];
+      };
+      return shuffle(pool).sort((a, b) => {
+        const x = ranks(a), y = ranks(b);
+        return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+      })[0]?.id;
     }
 
     function pickStartConversation() {
       const lastId = localStorage.getItem(LAST_START_KEY);
       const pool = practiceConversations();
       const fresh = pool.filter((c) => c.id !== lastId);
-      return shuffle(fresh.length ? fresh : pool)[0]?.id;
+      return balancedConversation(fresh.length ? fresh : pool);
     }
 
     function currentConversation() {
@@ -1600,7 +1658,8 @@
         const next = index + 1 < c.turns.length ? "turn" + (index + 1) : null;
         nodes["turn" + index] = {
           partnerEn: turn.partnerEn, partnerJa: turn.partnerJa, replyJa: turn.replyJa,
-          choices: [response(turn.replyEn, turn.replyJa, next, "", { core: turn.core || "", reactionEn: turn.reactionEn, reactionJa: turn.reactionJa }), ...(turn.alternatives || []).map((a) => response(a.text, a.ja, next, "", { ...a }))]
+          workbook: !!c.workbook && isBuiltInConversation(c),
+          choices: [response(turn.replyEn, turn.replyJa, next, "", { core: turn.core || "", phraseId: turn.phraseId, reactionEn: turn.reactionEn, reactionJa: turn.reactionJa }), ...(turn.alternatives || []).map((a) => response(a.text, a.ja, next, "", { ...a }))]
         };
       });
       const seed = seedConversations.find((item) => item.id === c.id);
@@ -1692,7 +1751,7 @@
     }
 
     function practiceConversations() {
-      return conversations.filter((c) => !isBuiltInConversation(c) || reviewedDialogues[c.id]);
+      return conversations.filter((c) => !isBuiltInConversation(c) || (workbookConversations.length ? workbookConversations.some((w) => w.id === c.id) : reviewedDialogues[c.id]));
     }
 
     function setTeacherStory(node, story, next, receipt = null) {
@@ -1765,7 +1824,11 @@
     function recordPracticeReply(option) {
       const remembered = !practice.repaired;
       practice.results.push(remembered);
-      const p = phrases.find((item) => [option.text, option.sourceText].filter(Boolean).some((text) => item.en.trim().toLowerCase() === text.trim().toLowerCase()));
+      if (option.phraseId) {
+        practiceCoverage.used[option.phraseId] = (practiceCoverage.used[option.phraseId] || 0) + 1;
+        savePracticeCoverage();
+      }
+      const p = phrases.find((item) => option.phraseId ? item.id === option.phraseId : [option.text, option.sourceText].filter(Boolean).some((text) => item.en.trim().toLowerCase() === text.trim().toLowerCase()));
       if (!p) return;
       p.attempts = (p.attempts || 0) + 1;
       p.correct = (p.correct || 0) + (remembered ? 1 : 0);
@@ -1834,6 +1897,7 @@
       const recent = new Set(recentTopics.slice(-3));
       const fresh = pool.filter((c) => !recent.has(c.id));
       const eligible = fresh.length ? fresh : pool;
+      if (workbookConversations.length) return balancedConversation(eligible);
       const ids = new Set(eligible.map((c) => c.id));
       topicQueue = topicQueue.filter((id) => ids.has(id));
       if (!topicQueue.length) topicQueue = shuffle(eligible.map((c) => c.id));
@@ -1890,6 +1954,10 @@
       const c = pool.find((item) => item.id === id) || pool.find((item) => item.id === pickStartConversation());
       practice = { conversationId: c?.id || null, partnerRole: keepHistory ? previousRole || c?.role : c?.role, nodeId: "turn0", waiting: false, completed: false, results: [], log: [], repaired: false, options: [], answersSinceShare: 0, teacherStoryCount: 0 };
       if (c) {
+        if (workbookConversations.length) {
+          practiceCoverage.scenes[c.id] = (practiceCoverage.scenes[c.id] || 0) + 1;
+          savePracticeCoverage();
+        }
         if (!keepHistory) localStorage.setItem(LAST_START_KEY, c.id);
         recentTopics.push(c.id);
         if (recentTopics.length > 12) recentTopics.shift();
@@ -1923,7 +1991,12 @@
           openingHistory.set(c.id, opening[0]);
         }
       }
-      if (keepHistory && simulationNodes.turn0) {
+      if (c.workbook) {
+        const divider = document.createElement("div");
+        divider.className = "scene-divider";
+        divider.textContent = c.title;
+        $("#chatLog").appendChild(divider);
+      } else if (keepHistory && simulationNodes.turn0) {
         const [en, ja] = topicBridge(previous, c);
         appendMessage("partner", en, ja);
       }
@@ -1941,6 +2014,7 @@
 
 
     function buildOptions(node) {
+      if (node.workbook) return buildBalancedOptions(node);
       const normalize = (text) => text.trim().toLowerCase().replace(/[.!?]+$/g, "");
       const seen = new Set();
       const replies = node.choices.map(prepareLearningReply).filter((reply) => {
@@ -1979,8 +2053,32 @@
       return result;
     }
 
+    function buildBalancedOptions(node) {
+      const unique = new Map(node.choices.map((reply) => [phraseKey(reply.text), { ...reply }]));
+      const pool = [...unique.values()];
+      const ranked = shuffle(pool).sort((a, b) =>
+        (practiceCoverage.shown[a.phraseId] || 0) - (practiceCoverage.shown[b.phraseId] || 0)
+        || (practiceCoverage.used[a.phraseId] || 0) - (practiceCoverage.used[b.phraseId] || 0));
+      const options = ranked.slice(0, 4);
+      const key = practice.conversationId + ":" + practice.nodeId;
+      const signature = (items) => items.map((r) => phraseKey(r.text)).sort().join("|");
+      const previous = optionHistory.get(key);
+      if (pool.length > 4 && previous?.content === signature(options)) {
+        options[options.length - 1] = ranked.find((reply) => !options.includes(reply));
+      }
+      const result = shuffle(options);
+      const order = (items) => items.map((r) => phraseKey(r.text)).join("|");
+      if (previous?.order === order(result) && result.length > 1) [result[0], result[1]] = [result[1], result[0]];
+      optionHistory.set(key, { content: signature(result), order: order(result) });
+      return result;
+    }
+
     function renderOptions(node) {
       practice.options = buildOptions(node);
+      if (node.workbook) {
+        for (const option of practice.options) practiceCoverage.shown[option.phraseId] = (practiceCoverage.shown[option.phraseId] || 0) + 1;
+        savePracticeCoverage();
+      }
       paintReplyOptions();
       setReplyMode("reply");
     }
