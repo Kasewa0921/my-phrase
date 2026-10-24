@@ -24,6 +24,8 @@ jobs:
           node-version: '24'
       - name: Verify phrase library
         run: node scripts/build-phrase-library.cjs --check
+      - name: Verify additional workbook phrases
+        run: node scripts/build-phrase-additions.cjs --check
       - name: Test conversation logic
         run: node tests/practice.test.cjs
       - name: Build public files

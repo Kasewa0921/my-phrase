@@ -9,6 +9,9 @@ const source = html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^    init\
 const conversationKey = 'my-phrase-conversations-v1';
 const libraryKey = 'my-phrase-topic-library-v1';
 const replyLanguageKey = 'my-phrase-reply-language-v1';
+const extraPhrasesKey = 'my-phrase-excel-additions-20261024-v1';
+const phraseStorageKey = 'my-phrase-mvp-v1';
+const phraseKey = text => text.replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ').toLowerCase();
 const plain = value => JSON.parse(JSON.stringify(value));
 
 class Element {
@@ -62,6 +65,7 @@ function loadApp(saved = {}, seed = 12345) {
   element('#categoryFilter').value = 'all';
   element('#statusFilter').value = 'all';
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-library.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-additions.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'beginner-dialogues.js'), 'utf8'), context);
   vm.runInContext(source + `
     globalThis.api = {
@@ -79,6 +83,7 @@ function loadApp(saved = {}, seed = 12345) {
       setReplyLanguage, paintReplyOptions, replyLanguage: () => replyLanguage,
       helpers: () => commonReplies,
       supplied: () => suppliedLibrary,
+      additions: () => additionalLibrary,
       suppliedConversations: () => suppliedConversations,
       phrases: () => phrases
     };
@@ -774,6 +779,100 @@ test('Imported phrases and scenarios are added once and edits/deletions are resp
   assert.equal(reloaded.api.phrases().find(p => p.id === edited.id).en, edited.en);
   assert.equal(reloaded.api.phrases().find(p => p.id === edited.id).correct, 7);
   assert(!reloaded.api.conversations().some(c => c.id === 'source-scene-home-cooking'));
+});
+
+test('All 100 workbook rows have complete examples and retain their original templates and source examples', () => {
+  const { api } = loadApp();
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data/phrase-additions.json'), 'utf8'));
+  const additions = api.additions();
+  assert.equal(raw.records.length, 100);
+  assert.equal(additions.length, 100);
+  assert.equal(raw.source, '日常会話フレーズ_追加100.xlsx');
+  for (let i = 0; i < 100; i++) {
+    const entry = additions[i];
+    const source = raw.records[i];
+    assert.equal(entry.number, 101 + i);
+    assert.equal(phraseKey(entry.en), phraseKey(source.en));
+    assert.equal(entry.ja, source.ja);
+    assert.equal(entry.category, source.category);
+    assert.equal(phraseKey(entry.sourceExample), phraseKey(source.example));
+    const example = entry.examples[0];
+    assert(example.ja);
+    assert(!/[○△]|\.{3}/.test(example.text + example.ja), example.text);
+    assert.equal(example.parts.map(p => p.text).join(''), example.text);
+    assert(api.findCorePatterns(example.text).length > 0, example.text);
+  }
+});
+
+test('Workbook import adds only missing sentences, keeping the existing library intact', () => {
+  const baseline = loadApp({ [extraPhrasesKey]: '1' });
+  const app = loadApp();
+  const oldEnglish = new Set(baseline.api.phrases().map(p => phraseKey(p.en)));
+  const missing = app.api.additions().filter(entry => !oldEnglish.has(phraseKey(entry.examples[0].text)));
+  assert.equal(app.api.phrases().length, baseline.api.phrases().length + missing.length);
+  for (const old of baseline.api.phrases()) assert(app.api.phrases().some(p => p.id === old.id));
+  for (const entry of app.api.additions()) {
+    const matches = app.api.phrases().filter(p => phraseKey(p.en) === phraseKey(entry.examples[0].text));
+    assert.equal(matches.length, 1, entry.en);
+  }
+  assert.equal(app.storage.get(extraPhrasesKey), '1');
+});
+
+test('Workbook overlaps update untouched definitions but keep IDs, progress and personal edits', () => {
+  const baseline = loadApp({ [extraPhrasesKey]: '1' });
+  const saved = plain(baseline.api.phrases());
+  const edited = saved.find(p => p.en === 'I appreciate it.');
+  Object.assign(edited, { ja: '自分で編集した訳', category: '自分の単元', core: 'I appreciate', memo: '個人のメモ', attempts: 9, correct: 7, successStreak: 2, lastPracticed: '2026-10-24' });
+  const curly = saved.find(p => p.en === "I'm getting used to my new job.");
+  assert(curly);
+  curly.en = 'I’m getting used to my new job.';
+  curly.attempts = 5;
+  const savedId = curly.id;
+  baseline.storage.set(phraseStorageKey, JSON.stringify(saved));
+  baseline.storage.delete(extraPhrasesKey);
+  const app = loadApp(Object.fromEntries(baseline.storage));
+  assert.deepEqual(plain(app.api.phrases().find(p => p.id === edited.id)), edited);
+  const actual = app.api.phrases().filter(p => phraseKey(p.en) === phraseKey(curly.en));
+  assert.equal(actual.length, 1);
+  assert.equal(actual[0].id, savedId);
+  assert.equal(actual[0].attempts, 5);
+  assert.equal(actual[0].ja, '新しい仕事に慣れてきている。');
+  assert.equal(actual[0].category, '日頃の習慣・生活');
+});
+
+test('Deleted or edited workbook phrases are not reset or duplicated on reload', () => {
+  const original = loadApp();
+  const phrases = plain(original.api.phrases());
+  const added = phrases.filter(p => p.id.startsWith('excel-20261024-'));
+  assert(added.length > 1);
+  const removedId = added[0].id;
+  added[1].ja = '編集した日本語';
+  added[1].memo = '保存したメモ';
+  added[1].correct = 4;
+  const kept = phrases.filter(p => p.id !== removedId);
+  original.storage.set(phraseStorageKey, JSON.stringify(kept));
+  const app = loadApp(Object.fromEntries(original.storage));
+  assert.equal(app.api.phrases().length, kept.length);
+  assert(!app.api.phrases().some(p => p.id === removedId));
+  assert.deepEqual(plain(app.api.phrases().find(p => p.id === added[1].id)), added[1]);
+});
+
+test('Workbook slot examples keep variable words black, including verb phrases with objects', () => {
+  const { api } = loadApp();
+  for (const entry of api.additions()) {
+    const example = entry.examples[0];
+    const matches = api.findCorePatterns(example.text);
+    let offset = 0;
+    for (const part of example.parts) {
+      const start = offset;
+      offset += part.text.length;
+      if (part.variable) assert(!matches.some(match => start < match.end && offset > match.start), example.text);
+    }
+  }
+  assert(api.formatEnglish('I usually end up watching videos.').includes('<span class="phrase-variable">watching videos</span>'));
+  assert(api.formatEnglish('I keep forgetting names.').includes('<span class="phrase-variable">forgetting names</span>'));
+  assert(api.formatEnglish('I keep forgetting my keys.').includes('<span class="phrase-variable">forgetting my keys</span>'));
+  assert(api.formatEnglish('Speaking of games, I made a new one.').includes('<span class="phrase-variable">I made a new one.</span>'));
 });
 
 test('Teacher portrait is a real local PNG and the chat label is teacher rather than friend', () => {

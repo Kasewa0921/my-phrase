@@ -320,6 +320,7 @@
   </div>
 
   <script src="phrase-library.js"></script>
+  <script src="phrase-additions.js"></script>
   <script src="beginner-dialogues.js"></script>
   <script>
     const STORAGE_KEY = "my-phrase-mvp-v1";
@@ -328,12 +329,15 @@
     const REPLY_LANGUAGE_KEY = "my-phrase-reply-language-v1";
     const SUPPLIED_LIBRARY_KEY = "my-phrase-supplied-library-v1";
     const SUPPLIED_PHRASES_KEY = "my-phrase-supplied-phrases-v1";
+    const EXTRA_PHRASES_KEY = "my-phrase-excel-additions-20261024-v1";
     const suppliedLibrary = globalThis.PHRASE_LIBRARY || [];
+    const additionalLibrary = globalThis.PHRASE_ADDITIONS || [];
     const reviewedDialogues = globalThis.BEGINNER_DIALOGUES || {};
+    const phraseKey = (text) => String(text).replace(/[‘’]/g, "'").trim().replace(/\s+/g, " ").toLowerCase();
     const suppliedExamples = new Map();
-    for (const entry of suppliedLibrary) {
+    for (const entry of [...suppliedLibrary, ...additionalLibrary]) {
       for (const example of entry.examples) {
-        const key = example.text.toLowerCase();
+        const key = phraseKey(example.text);
         const previous = suppliedExamples.get(key);
         const parts = previous ? mergePhraseParts(previous.parts, example.parts) : example.parts;
         suppliedExamples.set(key, { ...example, parts, category: entry.category, template: entry.en });
@@ -358,16 +362,17 @@
       }
       return result;
     }
-    const suppliedTemplateMatchers = suppliedLibrary.filter((entry) => /[○△]/.test(entry.en)).map((entry) => {
-      const pieces = entry.en.split(/([○△]+(?:ing)?)/g).filter(Boolean);
+    const suppliedTemplateMatchers = [...suppliedLibrary, ...additionalLibrary].filter((entry) => /[○△]|\.{3}/.test(entry.en)).map((entry) => {
+      const pieces = entry.en.split(/([○△]+(?:ing)?|\.{3})/g).filter(Boolean);
+      const isSlot = (piece) => /^[○△]/.test(piece) || piece === "...";
       const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const pattern = pieces.map((piece) => /^[○△]/.test(piece) ? piece.endsWith("ing") ? "(.+?ing)" : "(.+?)" : escapeRegex(piece)).join("");
-      return { entry, pieces, matcher: new RegExp("^" + pattern + "$", "i"), fixedLength: pieces.filter((piece) => !/^[○△]/.test(piece)).join("").length };
+      const pattern = pieces.map((piece) => isSlot(piece) ? "(.+?)" : escapeRegex(piece)).join("");
+      return { entry, pieces, matcher: new RegExp("^" + pattern + "$", "i"), fixedLength: pieces.filter((piece) => !isSlot(piece)).join("").length };
     }).sort((a, b) => b.fixedLength - a.fixedLength);
     const suppliedMatchCache = new Map();
 
     function getSuppliedExample(text) {
-      const key = String(text).replace(/[‘’]/g, "'").toLowerCase();
+      const key = phraseKey(text);
       if (suppliedExamples.has(key)) return suppliedExamples.get(key);
       if (suppliedMatchCache.has(key)) return suppliedMatchCache.get(key);
       let result = null;
@@ -376,7 +381,7 @@
         if (!match) continue;
         let group = 1, offset = 0;
         const parts = pieces.map((piece) => {
-          const variable = /^[○△]/.test(piece);
+          const variable = /^[○△]/.test(piece) || piece === "...";
           const length = variable ? match[group++].length : piece.length;
           const value = String(text).slice(offset, offset + length);
           offset += length;
@@ -916,6 +921,7 @@
       const saved = localStorage.getItem(STORAGE_KEY);
       let items = saved ? JSON.parse(saved) : seedPhrases.map((p, index) => ({ id: "seed-" + index, attempts: 0, correct: 0, lastPracticed: "", ...p }));
       const addLibrary = suppliedLibrary.length && !localStorage.getItem(SUPPLIED_PHRASES_KEY);
+      const addExtra = additionalLibrary.length && !localStorage.getItem(EXTRA_PHRASES_KEY);
       if (addLibrary) {
         const existing = new Set(items.map((p) => p.en.trim().toLowerCase()));
         const additions = suppliedLibrary.filter((entry) => !existing.has(entry.examples[0].text.toLowerCase())).map((entry) => ({
@@ -924,14 +930,38 @@
         }));
         items = [...items, ...additions];
       }
+      if (addExtra) {
+        const existing = new Map(items.map((p) => [phraseKey(p.en), p]));
+        const defaults = new Map([...suppliedLibrary.map((entry) => ({ en: entry.examples[0].text, ja: entry.examples[0].ja, category: entry.category })), ...seedPhrases]
+          .map((p) => [phraseKey(p.en), p]));
+        for (const entry of additionalLibrary) {
+          const example = entry.examples[0];
+          const key = phraseKey(example.text);
+          const found = existing.get(key);
+          if (found) {
+            const original = defaults.get(key);
+            if (original && found.ja === original.ja && found.category === original.category && !found.core) {
+              found.ja = example.ja;
+              found.category = entry.category;
+            }
+            continue;
+          }
+          const phrase = { id: entry.id, en: example.text, ja: example.ja, category: entry.category,
+            status: "これから", attempts: 0, correct: 0, lastPracticed: "", successStreak: 0,
+            memo: "例文: " + entry.sourceExample, template: entry.en, meaning: entry.ja };
+          items.push(phrase);
+          existing.set(key, phrase);
+        }
+      }
       items = items.map((p) => {
         const status = { "未学習": "これから", "苦手": "これから", "覚えた": "身についた" }[p.status] || p.status;
         const streak = p.successStreak ?? (status === "身についた" ? 3 : status === "練習中" ? Math.min(2, p.correct || 1) : 0);
         return { ...p, status, successStreak: streak };
       });
-      if (addLibrary) {
+      if (addLibrary || addExtra) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-        localStorage.setItem(SUPPLIED_PHRASES_KEY, "1");
+        if (addLibrary) localStorage.setItem(SUPPLIED_PHRASES_KEY, "1");
+        if (addExtra) localStorage.setItem(EXTRA_PHRASES_KEY, "1");
       }
       return items;
     }

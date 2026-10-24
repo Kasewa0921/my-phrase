@@ -1,0 +1,706 @@
+{
+  "source": "日常会話フレーズ_追加100.xlsx",
+  "sheet": "追加100フレーズ",
+  "records": [
+    {
+      "number": 101,
+      "category": "話を広げる・深掘り",
+      "en": "Tell me more about it.",
+      "ja": "もっと詳しく聞かせて。",
+      "example": "You went to Kyoto? Tell me more about it."
+    },
+    {
+      "number": 102,
+      "category": "話を広げる・深掘り",
+      "en": "What happened next?",
+      "ja": "その後どうなったの？",
+      "example": "You missed the train? What happened next?"
+    },
+    {
+      "number": 103,
+      "category": "話を広げる・深掘り",
+      "en": "How come?",
+      "ja": "どうして？",
+      "example": "You quit your job? How come?"
+    },
+    {
+      "number": 104,
+      "category": "話を広げる・深掘り",
+      "en": "What was the best part?",
+      "ja": "一番よかったところは？",
+      "example": "What was the best part of the trip?"
+    },
+    {
+      "number": 105,
+      "category": "話を広げる・深掘り",
+      "en": "Who did you go with?",
+      "ja": "誰と行ったの？",
+      "example": "Who did you go with?"
+    },
+    {
+      "number": 106,
+      "category": "話を広げる・深掘り",
+      "en": "How long did you stay?",
+      "ja": "どのくらい滞在したの？",
+      "example": "How long did you stay in Osaka?"
+    },
+    {
+      "number": 107,
+      "category": "話を広げる・深掘り",
+      "en": "When did you start?",
+      "ja": "いつ始めたの？",
+      "example": "When did you start drawing?"
+    },
+    {
+      "number": 108,
+      "category": "話を広げる・深掘り",
+      "en": "How often do you do that?",
+      "ja": "どのくらいの頻度でやるの？",
+      "example": "How often do you go running?"
+    },
+    {
+      "number": 109,
+      "category": "話を広げる・深掘り",
+      "en": "What made you decide to ○○?",
+      "ja": "どうして○○しようと思ったの？",
+      "example": "What made you decide to move?"
+    },
+    {
+      "number": 110,
+      "category": "話を広げる・深掘り",
+      "en": "Would you recommend it?",
+      "ja": "それ、おすすめ？",
+      "example": "Would you recommend that movie?"
+    },
+    {
+      "number": 111,
+      "category": "過去の出来事・経験",
+      "en": "I used to ○○.",
+      "ja": "以前はよく○○していた。",
+      "example": "I used to play soccer."
+    },
+    {
+      "number": 112,
+      "category": "過去の出来事・経験",
+      "en": "I almost ○○.",
+      "ja": "危うく○○するところだった。",
+      "example": "I almost missed my train."
+    },
+    {
+      "number": 113,
+      "category": "過去の出来事・経験",
+      "en": "I accidentally ○○.",
+      "ja": "うっかり○○してしまった。",
+      "example": "I accidentally deleted the file."
+    },
+    {
+      "number": 114,
+      "category": "過去の出来事・経験",
+      "en": "I managed to ○○.",
+      "ja": "なんとか○○できた。",
+      "example": "I managed to finish it."
+    },
+    {
+      "number": 115,
+      "category": "過去の出来事・経験",
+      "en": "I forgot to ○○.",
+      "ja": "○○するのを忘れた。",
+      "example": "I forgot to call him."
+    },
+    {
+      "number": 116,
+      "category": "過去の出来事・経験",
+      "en": "I decided to ○○.",
+      "ja": "○○することに決めた。",
+      "example": "I decided to take a break."
+    },
+    {
+      "number": 117,
+      "category": "過去の出来事・経験",
+      "en": "I had to ○○.",
+      "ja": "○○しなければならなかった。",
+      "example": "I had to work late."
+    },
+    {
+      "number": 118,
+      "category": "過去の出来事・経験",
+      "en": "I was about to ○○.",
+      "ja": "ちょうど○○するところだった。",
+      "example": "I was about to leave."
+    },
+    {
+      "number": 119,
+      "category": "過去の出来事・経験",
+      "en": "I happened to ○○.",
+      "ja": "たまたま○○した。",
+      "example": "I happened to see my friend."
+    },
+    {
+      "number": 120,
+      "category": "過去の出来事・経験",
+      "en": "I’ve never ○○ before.",
+      "ja": "今まで○○したことがない。",
+      "example": "I’ve never tried surfing before."
+    },
+    {
+      "number": 121,
+      "category": "日頃の習慣・生活",
+      "en": "I tend to ○○.",
+      "ja": "○○しがちだ。",
+      "example": "I tend to stay up late."
+    },
+    {
+      "number": 122,
+      "category": "日頃の習慣・生活",
+      "en": "I usually end up ○○ing.",
+      "ja": "結局いつも○○してしまう。",
+      "example": "I usually end up watching videos."
+    },
+    {
+      "number": 123,
+      "category": "日頃の習慣・生活",
+      "en": "I’m trying to ○○.",
+      "ja": "○○しようと頑張っている。",
+      "example": "I’m trying to eat healthier."
+    },
+    {
+      "number": 124,
+      "category": "日頃の習慣・生活",
+      "en": "I’m getting used to ○○.",
+      "ja": "○○に慣れてきている。",
+      "example": "I’m getting used to my new job."
+    },
+    {
+      "number": 125,
+      "category": "日頃の習慣・生活",
+      "en": "I’m not used to ○○.",
+      "ja": "○○には慣れていない。",
+      "example": "I’m not used to waking up early."
+    },
+    {
+      "number": 126,
+      "category": "日頃の習慣・生活",
+      "en": "I rarely ○○.",
+      "ja": "めったに○○しない。",
+      "example": "I rarely eat out."
+    },
+    {
+      "number": 127,
+      "category": "日頃の習慣・生活",
+      "en": "I’ve started ○○ing.",
+      "ja": "○○し始めた。",
+      "example": "I’ve started learning English."
+    },
+    {
+      "number": 128,
+      "category": "日頃の習慣・生活",
+      "en": "I’ve stopped ○○ing.",
+      "ja": "○○するのをやめた。",
+      "example": "I’ve stopped drinking soda."
+    },
+    {
+      "number": 129,
+      "category": "日頃の習慣・生活",
+      "en": "I keep ○○ing.",
+      "ja": "何度も○○してしまう。",
+      "example": "I keep forgetting names."
+    },
+    {
+      "number": 130,
+      "category": "日頃の習慣・生活",
+      "en": "I spend a lot of time ○○ing.",
+      "ja": "○○にかなり時間を使う。",
+      "example": "I spend a lot of time drawing."
+    },
+    {
+      "number": 131,
+      "category": "感想を詳しく言う",
+      "en": "It turned out great.",
+      "ja": "結果的にすごくよかった。",
+      "example": "The event turned out great."
+    },
+    {
+      "number": 132,
+      "category": "感想を詳しく言う",
+      "en": "It didn’t go as planned.",
+      "ja": "予定どおりにはいかなかった。",
+      "example": "The presentation didn’t go as planned."
+    },
+    {
+      "number": 133,
+      "category": "感想を詳しく言う",
+      "en": "It was better than I thought.",
+      "ja": "思っていたよりよかった。",
+      "example": "The food was better than I thought."
+    },
+    {
+      "number": 134,
+      "category": "感想を詳しく言う",
+      "en": "I was disappointed.",
+      "ja": "がっかりした。",
+      "example": "I was disappointed with the result."
+    },
+    {
+      "number": 135,
+      "category": "感想を詳しく言う",
+      "en": "I was relieved.",
+      "ja": "ほっとした。",
+      "example": "I was relieved when it was over."
+    },
+    {
+      "number": 136,
+      "category": "感想を詳しく言う",
+      "en": "I had a great time.",
+      "ja": "すごく楽しい時間だった。",
+      "example": "I had a great time yesterday."
+    },
+    {
+      "number": 137,
+      "category": "感想を詳しく言う",
+      "en": "I’m proud of ○○.",
+      "ja": "○○を誇りに思う。",
+      "example": "I’m proud of what we made."
+    },
+    {
+      "number": 138,
+      "category": "感想を詳しく言う",
+      "en": "I’m happy with ○○.",
+      "ja": "○○に満足している。",
+      "example": "I’m happy with the design."
+    },
+    {
+      "number": 139,
+      "category": "感想を詳しく言う",
+      "en": "I’m not happy with ○○.",
+      "ja": "○○に満足していない。",
+      "example": "I’m not happy with the result."
+    },
+    {
+      "number": 140,
+      "category": "感想を詳しく言う",
+      "en": "It caught me off guard.",
+      "ja": "不意を突かれた。",
+      "example": "That question caught me off guard."
+    },
+    {
+      "number": 141,
+      "category": "意見・ニュアンス",
+      "en": "I guess ○○.",
+      "ja": "たぶん○○かな。",
+      "example": "I guess he’s busy."
+    },
+    {
+      "number": 142,
+      "category": "意見・ニュアンス",
+      "en": "As far as I know, ○○.",
+      "ja": "私の知る限り○○。",
+      "example": "As far as I know, it’s free."
+    },
+    {
+      "number": 143,
+      "category": "意見・ニュアンス",
+      "en": "To be fair, ○○.",
+      "ja": "公平に言うと○○。",
+      "example": "To be fair, it was difficult."
+    },
+    {
+      "number": 144,
+      "category": "意見・ニュアンス",
+      "en": "I agree with you.",
+      "ja": "あなたに賛成。",
+      "example": "I agree with you on that."
+    },
+    {
+      "number": 145,
+      "category": "意見・ニュアンス",
+      "en": "I see your point.",
+      "ja": "言いたいことはわかる。",
+      "example": "I see your point, but I disagree."
+    },
+    {
+      "number": 146,
+      "category": "意見・ニュアンス",
+      "en": "I’d rather ○○.",
+      "ja": "どちらかというと○○したい。",
+      "example": "I’d rather stay home."
+    },
+    {
+      "number": 147,
+      "category": "意見・ニュアンス",
+      "en": "I don’t mind ○○ing.",
+      "ja": "○○するのは構わない。",
+      "example": "I don’t mind waiting."
+    },
+    {
+      "number": 148,
+      "category": "意見・ニュアンス",
+      "en": "I’m okay with ○○.",
+      "ja": "○○で問題ない。",
+      "example": "I’m okay with either option."
+    },
+    {
+      "number": 149,
+      "category": "意見・ニュアンス",
+      "en": "I’m not a fan of ○○.",
+      "ja": "○○はあまり好みじゃない。",
+      "example": "I’m not a fan of horror movies."
+    },
+    {
+      "number": 150,
+      "category": "意見・ニュアンス",
+      "en": "It’s up to you.",
+      "ja": "あなたに任せるよ。",
+      "example": "Either restaurant is fine. It’s up to you."
+    },
+    {
+      "number": 151,
+      "category": "比較・変化",
+      "en": "○○ is easier than △△.",
+      "ja": "○○は△△より簡単。",
+      "example": "This app is easier than the old one."
+    },
+    {
+      "number": 152,
+      "category": "比較・変化",
+      "en": "○○ is similar to △△.",
+      "ja": "○○は△△に似ている。",
+      "example": "This game is similar to chess."
+    },
+    {
+      "number": 153,
+      "category": "比較・変化",
+      "en": "○○ is different from △△.",
+      "ja": "○○は△△と違う。",
+      "example": "My new place is different from the old one."
+    },
+    {
+      "number": 154,
+      "category": "比較・変化",
+      "en": "It’s not as ○○ as I thought.",
+      "ja": "思っていたほど○○ではない。",
+      "example": "It’s not as expensive as I thought."
+    },
+    {
+      "number": 155,
+      "category": "比較・変化",
+      "en": "It’s getting ○○.",
+      "ja": "だんだん○○になってきた。",
+      "example": "It’s getting colder."
+    },
+    {
+      "number": 156,
+      "category": "比較・変化",
+      "en": "I’m getting better at ○○.",
+      "ja": "○○が上達してきた。",
+      "example": "I’m getting better at cooking."
+    },
+    {
+      "number": 157,
+      "category": "比較・変化",
+      "en": "I’m still working on ○○.",
+      "ja": "○○はまだ取り組んでいる途中。",
+      "example": "I’m still working on the design."
+    },
+    {
+      "number": 158,
+      "category": "比較・変化",
+      "en": "It makes a big difference.",
+      "ja": "それで大きく変わる。",
+      "example": "A good chair makes a big difference."
+    },
+    {
+      "number": 159,
+      "category": "比較・変化",
+      "en": "It’s not worth ○○ing.",
+      "ja": "○○する価値はない。",
+      "example": "It’s not worth waiting for."
+    },
+    {
+      "number": 160,
+      "category": "比較・変化",
+      "en": "The more ○○, the better.",
+      "ja": "○○であればあるほどいい。",
+      "example": "The more practice, the better."
+    },
+    {
+      "number": 161,
+      "category": "予定・判断・選択",
+      "en": "I haven’t decided yet.",
+      "ja": "まだ決めていない。",
+      "example": "I haven’t decided where to go yet."
+    },
+    {
+      "number": 162,
+      "category": "予定・判断・選択",
+      "en": "I’m planning on ○○ing.",
+      "ja": "○○する計画を立てている。",
+      "example": "I’m planning on visiting my parents."
+    },
+    {
+      "number": 163,
+      "category": "予定・判断・選択",
+      "en": "I’m supposed to ○○.",
+      "ja": "○○することになっている。",
+      "example": "I’m supposed to meet him at six."
+    },
+    {
+      "number": 164,
+      "category": "予定・判断・選択",
+      "en": "I’m considering ○○.",
+      "ja": "○○を検討している。",
+      "example": "I’m considering a new laptop."
+    },
+    {
+      "number": 165,
+      "category": "予定・判断・選択",
+      "en": "I changed my mind.",
+      "ja": "考えが変わった。",
+      "example": "I was going to go, but I changed my mind."
+    },
+    {
+      "number": 166,
+      "category": "予定・判断・選択",
+      "en": "I’ll figure it out.",
+      "ja": "なんとか考えるよ。",
+      "example": "I don’t know how yet, but I’ll figure it out."
+    },
+    {
+      "number": 167,
+      "category": "予定・判断・選択",
+      "en": "I’ll give it a try.",
+      "ja": "試しにやってみる。",
+      "example": "It looks hard, but I’ll give it a try."
+    },
+    {
+      "number": 168,
+      "category": "予定・判断・選択",
+      "en": "I’ll see how it goes.",
+      "ja": "様子を見てみる。",
+      "example": "I’ll try it and see how it goes."
+    },
+    {
+      "number": 169,
+      "category": "予定・判断・選択",
+      "en": "I’d better ○○.",
+      "ja": "○○したほうがよさそう。",
+      "example": "I’d better get going."
+    },
+    {
+      "number": 170,
+      "category": "予定・判断・選択",
+      "en": "I can’t wait to ○○.",
+      "ja": "○○するのが待ちきれない。",
+      "example": "I can’t wait to see it."
+    },
+    {
+      "number": 171,
+      "category": "会話のつなぎ・説明",
+      "en": "Speaking of ○○, ...",
+      "ja": "○○といえば……。",
+      "example": "Speaking of games, I made a new one."
+    },
+    {
+      "number": 172,
+      "category": "会話のつなぎ・説明",
+      "en": "That reminds me, ...",
+      "ja": "それで思い出したんだけど……。",
+      "example": "That reminds me, I have a question."
+    },
+    {
+      "number": 173,
+      "category": "会話のつなぎ・説明",
+      "en": "Anyway, ...",
+      "ja": "とにかく／話を戻すと……。",
+      "example": "Anyway, I had a good weekend."
+    },
+    {
+      "number": 174,
+      "category": "会話のつなぎ・説明",
+      "en": "To make a long story short, ...",
+      "ja": "手短に言うと……。",
+      "example": "To make a long story short, we won."
+    },
+    {
+      "number": 175,
+      "category": "会話のつなぎ・説明",
+      "en": "The good news is ○○.",
+      "ja": "いい知らせは○○ということ。",
+      "example": "The good news is we finished early."
+    },
+    {
+      "number": 176,
+      "category": "会話のつなぎ・説明",
+      "en": "The bad news is ○○.",
+      "ja": "悪い知らせは○○ということ。",
+      "example": "The bad news is it’s raining."
+    },
+    {
+      "number": 177,
+      "category": "会話のつなぎ・説明",
+      "en": "What surprised me was ○○.",
+      "ja": "驚いたのは○○だった。",
+      "example": "What surprised me was the price."
+    },
+    {
+      "number": 178,
+      "category": "会話のつなぎ・説明",
+      "en": "That’s because ○○.",
+      "ja": "それは○○だから。",
+      "example": "That’s because I was busy."
+    },
+    {
+      "number": 179,
+      "category": "会話のつなぎ・説明",
+      "en": "Not only that, ...",
+      "ja": "それだけじゃなくて……。",
+      "example": "Not only that, it was cheap."
+    },
+    {
+      "number": 180,
+      "category": "会話のつなぎ・説明",
+      "en": "Long story short, ...",
+      "ja": "要するに……。",
+      "example": "Long story short, I got the job."
+    },
+    {
+      "number": 181,
+      "category": "聞き取り・英語学習",
+      "en": "Did you mean ○○?",
+      "ja": "○○という意味？",
+      "example": "Did you mean next Tuesday?"
+    },
+    {
+      "number": 182,
+      "category": "聞き取り・英語学習",
+      "en": "Do you mean ○○?",
+      "ja": "○○ってこと？",
+      "example": "Do you mean this one?"
+    },
+    {
+      "number": 183,
+      "category": "聞き取り・英語学習",
+      "en": "Could you give me an example?",
+      "ja": "例を挙げてもらえる？",
+      "example": "Could you give me an example?"
+    },
+    {
+      "number": 184,
+      "category": "聞き取り・英語学習",
+      "en": "Does that sound natural?",
+      "ja": "それって自然な言い方？",
+      "example": "Does that sound natural in English?"
+    },
+    {
+      "number": 185,
+      "category": "聞き取り・英語学習",
+      "en": "Is there a simpler way to say it?",
+      "ja": "もっと簡単な言い方はある？",
+      "example": "Is there a simpler way to say it?"
+    },
+    {
+      "number": 186,
+      "category": "聞き取り・英語学習",
+      "en": "What’s the difference between ○○ and △△?",
+      "ja": "○○と△△は何が違う？",
+      "example": "What’s the difference between say and tell?"
+    },
+    {
+      "number": 187,
+      "category": "聞き取り・英語学習",
+      "en": "I’m trying to say ○○.",
+      "ja": "○○と言おうとしている。",
+      "example": "I’m trying to say it was unexpected."
+    },
+    {
+      "number": 188,
+      "category": "聞き取り・英語学習",
+      "en": "I’m not following.",
+      "ja": "話についていけていない。",
+      "example": "Sorry, I’m not following."
+    },
+    {
+      "number": 189,
+      "category": "聞き取り・英語学習",
+      "en": "Could you write that down?",
+      "ja": "それを書いてもらえる？",
+      "example": "Could you write that down for me?"
+    },
+    {
+      "number": 190,
+      "category": "聞き取り・英語学習",
+      "en": "Let me try again.",
+      "ja": "もう一度言ってみるね。",
+      "example": "Let me try again in English."
+    },
+    {
+      "number": 191,
+      "category": "返事・人とのやりとり",
+      "en": "That works for me.",
+      "ja": "それで都合がいいよ。",
+      "example": "Friday at seven? That works for me."
+    },
+    {
+      "number": 192,
+      "category": "返事・人とのやりとり",
+      "en": "I’m on my way.",
+      "ja": "今向かっているよ。",
+      "example": "I’m on my way now."
+    },
+    {
+      "number": 193,
+      "category": "返事・人とのやりとり",
+      "en": "I’m running late.",
+      "ja": "遅れそう。",
+      "example": "Sorry, I’m running late."
+    },
+    {
+      "number": 194,
+      "category": "返事・人とのやりとり",
+      "en": "Take your time.",
+      "ja": "ゆっくりでいいよ。",
+      "example": "No rush. Take your time."
+    },
+    {
+      "number": 195,
+      "category": "返事・人とのやりとり",
+      "en": "It’s no big deal.",
+      "ja": "たいしたことじゃないよ。",
+      "example": "Don’t worry. It’s no big deal."
+    },
+    {
+      "number": 196,
+      "category": "返事・人とのやりとり",
+      "en": "I appreciate it.",
+      "ja": "助かるよ／ありがたいよ。",
+      "example": "Thanks for your help. I appreciate it."
+    },
+    {
+      "number": 197,
+      "category": "返事・人とのやりとり",
+      "en": "That sounds tough.",
+      "ja": "それは大変そうだね。",
+      "example": "You worked all weekend? That sounds tough."
+    },
+    {
+      "number": 198,
+      "category": "返事・人とのやりとり",
+      "en": "I’m happy for you.",
+      "ja": "自分のことのようにうれしいよ。",
+      "example": "You got the job? I’m happy for you."
+    },
+    {
+      "number": 199,
+      "category": "返事・人とのやりとり",
+      "en": "Let’s catch up soon.",
+      "ja": "近いうちにゆっくり話そう。",
+      "example": "It was nice seeing you. Let’s catch up soon."
+    },
+    {
+      "number": 200,
+      "category": "返事・人とのやりとり",
+      "en": "Keep me posted.",
+      "ja": "進展があったら教えて。",
+      "example": "Keep me posted on the project."
+    }
+  ]
+}
