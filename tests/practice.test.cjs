@@ -10,6 +10,8 @@ const conversationKey = 'my-phrase-conversations-v1';
 const libraryKey = 'my-phrase-topic-library-v1';
 const replyLanguageKey = 'my-phrase-reply-language-v1';
 const extraPhrasesKey = 'my-phrase-excel-additions-20261024-v1';
+const replacementKey = 'my-phrase-workbook-replacement-20261024-v1';
+const backupKey = 'my-phrase-before-workbook-replacement-20261024-v1';
 const phraseStorageKey = 'my-phrase-mvp-v1';
 const phraseKey = text => text.replace(/[‘’]/g, "'").trim().replace(/\s+/g, ' ').toLowerCase();
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -763,9 +765,9 @@ test('Source-based scenes contain only completed source examples and have cohere
   }
 });
 
-test('Imported phrases and scenarios are added once and edits/deletions are respected on reload', () => {
+test('Workbook phrases and scenarios respect edits and deletions on reload', () => {
   const app = loadApp();
-  const libraryPhrase = app.api.phrases().find(p => p.id.startsWith('library-'));
+  const libraryPhrase = app.api.phrases()[0];
   const phrases = plain(app.api.phrases());
   const edited = phrases.find(p => p.id === libraryPhrase.id);
   edited.en = 'I cooked noodles at home.';
@@ -804,40 +806,57 @@ test('All 100 workbook rows have complete examples and retain their original tem
   }
 });
 
-test('Workbook import adds only missing sentences, keeping the existing library intact', () => {
-  const baseline = loadApp({ [extraPhrasesKey]: '1' });
+test('Fresh installs contain exactly the 100 workbook phrases and no old library rows', () => {
   const app = loadApp();
-  const oldEnglish = new Set(baseline.api.phrases().map(p => phraseKey(p.en)));
-  const missing = app.api.additions().filter(entry => !oldEnglish.has(phraseKey(entry.examples[0].text)));
-  assert.equal(app.api.phrases().length, baseline.api.phrases().length + missing.length);
-  for (const old of baseline.api.phrases()) assert(app.api.phrases().some(p => p.id === old.id));
-  for (const entry of app.api.additions()) {
-    const matches = app.api.phrases().filter(p => phraseKey(p.en) === phraseKey(entry.examples[0].text));
-    assert.equal(matches.length, 1, entry.en);
-  }
-  assert.equal(app.storage.get(extraPhrasesKey), '1');
+  assert.equal(app.api.phrases().length, 100);
+  assert.deepEqual(plain(app.api.phrases().map(p => p.id)), plain(app.api.additions().map(p => p.id)));
+  assert.equal(app.storage.get(replacementKey), '1');
+  assert(!app.storage.has(backupKey));
 });
 
-test('Workbook overlaps update untouched definitions but keep IDs, progress and personal edits', () => {
-  const baseline = loadApp({ [extraPhrasesKey]: '1' });
-  const saved = plain(baseline.api.phrases());
-  const edited = saved.find(p => p.en === 'I appreciate it.');
-  Object.assign(edited, { ja: '自分で編集した訳', category: '自分の単元', core: 'I appreciate', memo: '個人のメモ', attempts: 9, correct: 7, successStreak: 2, lastPracticed: '2026-10-24' });
-  const curly = saved.find(p => p.en === "I'm getting used to my new job.");
-  assert(curly);
-  curly.en = 'I’m getting used to my new job.';
-  curly.attempts = 5;
-  const savedId = curly.id;
-  baseline.storage.set(phraseStorageKey, JSON.stringify(saved));
-  baseline.storage.delete(extraPhrasesKey);
-  const app = loadApp(Object.fromEntries(baseline.storage));
-  assert.deepEqual(plain(app.api.phrases().find(p => p.id === edited.id)), edited);
-  const actual = app.api.phrases().filter(p => phraseKey(p.en) === phraseKey(curly.en));
-  assert.equal(actual.length, 1);
-  assert.equal(actual[0].id, savedId);
-  assert.equal(actual[0].attempts, 5);
-  assert.equal(actual[0].ja, '新しい仕事に慣れてきている。');
-  assert.equal(actual[0].category, '日頃の習慣・生活');
+test('Existing 307-row and 398-row lists are replaced, not appended, regardless of old flags', () => {
+  const baseline = loadApp();
+  const oldRows = plain(baseline.api.supplied().map(entry => ({
+    id: 'library-' + entry.id, en: entry.examples[0].text, ja: '以前の訳', category: '以前の単元'
+  })));
+  for (const count of [307, 398]) {
+    const rows = Array.from({length: count}, (_, i) => oldRows[i] || {id: 'old-' + i, en: 'Old phrase ' + i});
+    const raw = JSON.stringify(rows);
+    const app = loadApp({[phraseStorageKey]: raw, [extraPhrasesKey]: '1', 'my-phrase-supplied-phrases-v1': '1'});
+    assert.equal(app.api.phrases().length, 100);
+    assert.deepEqual(plain(app.api.phrases().map(p => p.id)), plain(app.api.additions().map(p => p.id)));
+    assert.equal(app.storage.get(backupKey), raw);
+    assert.equal(app.storage.get(replacementKey), '1');
+    assert(!app.api.phrases().some(p => p.id.startsWith('library-') || p.id.startsWith('old-')));
+    const reloaded = loadApp(Object.fromEntries(app.storage));
+    assert.equal(reloaded.api.phrases().length, 100);
+    assert.equal(reloaded.storage.get(backupKey), raw);
+  }
+});
+
+test('Replacement uses workbook definitions and retains progress only for matching English', () => {
+  const previous = [
+    {id: 'old-overlap', en: 'I’m getting used to my new job.', ja: '古い訳', category: '古い単元',
+      core: 'old core', status: '練習中', attempts: 9, correct: 7, successStreak: 2, lastPracticed: '2026-10-24'},
+    {id: 'custom-old', en: 'Not in the workbook.', memo: '以前のメモ'}
+  ];
+  const raw = JSON.stringify(previous);
+  const app = loadApp({[phraseStorageKey]: raw});
+  const actual = app.api.phrases().find(p => phraseKey(p.en) === phraseKey(previous[0].en));
+  assert.equal(actual.id, 'excel-20261024-124');
+  assert.equal(actual.ja, '新しい仕事に慣れてきている。');
+  assert.equal(actual.category, '日頃の習慣・生活');
+  assert.equal(actual.attempts, 9);
+  assert.equal(actual.correct, 7);
+  assert.equal(actual.successStreak, 2);
+  assert(!actual.core);
+  assert(!app.api.phrases().some(p => p.id === 'custom-old'));
+  assert.equal(app.storage.get(backupKey), raw);
+});
+
+test('An intentionally empty list stays empty after the one-time replacement', () => {
+  const app = loadApp({[phraseStorageKey]: '[]', [replacementKey]: '1'});
+  assert.equal(app.api.phrases().length, 0);
 });
 
 test('Deleted or edited workbook phrases are not reset or duplicated on reload', () => {
