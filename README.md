@@ -14,6 +14,16 @@
 
 Excelのフレーズ用の `phrase-additions.js` も必要です。一覧は指定された `日常会話フレーズ_追加100.xlsx` のNo.101〜200の100件だけで構成します。旧307件・398件の一覧には追加せず、一度だけ全件を置き換えます。「厳選100」や「最近学んだ表現」は含めません。英語が一致する項目の学習記録だけを引き継ぎ、訳・カテゴリ・例文は指定Excelを優先します。置き換え後の追加・編集・削除は再読込しても保持します。
 
+## 機能メニューと4択トレーニング
+
+左上のメニューから「会話練習」「4択トレーニング」「フレーズ一覧」へ移動できます。フレーズ・会話の追加も同じメニューから開けます。
+
+4択は指定Excelの100フレーズを10セクションに分け、各10問・初期設定8秒で出題します。80%以上で次のセクションを解放し、正答率に応じてS（100%）、A（90%）、B（80%）、C（60〜70%）、D（50%以下）を表示します。問題と選択肢は毎回シャッフルします。○・×は静止表示で、「わからない」は時間切れと分けて記録します。
+
+ゲームは `timed-quiz.html` を独立した画面として読み込みます。メニューを開く・別機能へ移る・タブを離れると一時停止し、戻った後は「続ける」で再開します。会話・フレーズの保存領域には書き込みません。成績と設定は `my-phrase-timed-quiz-v1` に保存し、同じ保存先に試作の記録がある場合だけ初回にコピーします。ローカルHTMLから公開URLへ、または別端末へ自動で移行することはありません。
+
+`timed-quiz-prototype.html` を共通ソースとして `node scripts/build-timed-quiz.cjs` で本番用の `timed-quiz.html` を生成します。ローカル確認用の単体HTMLは `node scripts/build-timed-prototype.cjs` で別途生成し、公開対象には含めません。
+
 ## 教材とテスト
 
 Node.jsが利用できる環境で実行します。追加パッケージは不要です。
@@ -22,7 +32,10 @@ Node.jsが利用できる環境で実行します。追加パッケージは不�
 node scripts/build-phrase-library.cjs
 node scripts/build-phrase-library.cjs --check
 node scripts/build-phrase-additions.cjs --check
+node scripts/build-timed-prototype.cjs
+node scripts/build-timed-quiz.cjs
 node tests/practice.test.cjs
+node tests/timed-prototype.test.cjs
 node scripts/build-static.cjs
 ```
 

@@ -28,6 +28,12 @@ jobs:
         run: node scripts/build-phrase-additions.cjs --check
       - name: Test conversation logic
         run: node tests/practice.test.cjs
+      - name: Build quiz pages
+        run: |
+          node scripts/build-timed-prototype.cjs
+          node scripts/build-timed-quiz.cjs
+      - name: Test quiz and integration
+        run: node tests/timed-prototype.test.cjs
       - name: Build public files
         run: node scripts/build-static.cjs
       - name: Configure Pages

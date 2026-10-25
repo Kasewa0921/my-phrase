@@ -1,11 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+require('./build-timed-quiz.cjs');
 
 const root = path.join(__dirname, '..');
 const output = path.join(root, 'dist');
 const files = [
   'index.html',
+  'timed-quiz.html',
   'phrase-library.js',
   'phrase-additions.js',
   'beginner-dialogues.js',

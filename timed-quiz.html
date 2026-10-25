@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>My Phrase | 4択トレーニング</title>
+  <style>
+    :root {
+      color-scheme:only light;
+      --bg:#fff; --surface:#fff; --surface-soft:#f4f4f6;
+      --ink:#24252a; --muted:#686b74; --line:#dedfe4;
+      --brand:#245dcc; --brand-strong:#1949a8; --brand-soft:#eaf0ff;
+      --self-bg:#deebff; --self-ink:#253858;
+      --rose:#b42336; --success:#247448; --focus:#245dcc55;
+      --soft:var(--surface-soft); --blue:var(--brand); --blue-dark:var(--brand-strong);
+      --paper:var(--surface-soft); --question-bg:var(--surface-soft); --red:var(--rose);
+      font-synthesis:none;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; height:100%; }
+    body { background:var(--surface-soft); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif; font-size:14px; letter-spacing:0; overflow:hidden; -webkit-font-smoothing:antialiased; }
+    button, input { font:inherit; }
+    button { cursor:pointer; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    button:disabled { cursor:default; }
+    button:focus-visible, input:focus-visible { outline:3px solid var(--focus); outline-offset:4px; }
+    [hidden] { display:none !important; }
+    .app { position:relative; isolation:isolate; max-width:640px; height:100dvh; margin:0 auto; padding-top:env(safe-area-inset-top); background:var(--surface); display:flex; flex-direction:column; overflow:hidden; }
+    .header { position:relative; flex-shrink:0; min-height:62px; display:grid; grid-template-columns:40px minmax(0,1fr) 40px; align-items:center; gap:8px; padding:10px 20px; background:var(--surface); z-index:4; border-bottom:1px solid var(--line); }
+    .brand { font-size:20px; font-weight:650; text-align:center; color:var(--ink); overflow-wrap:anywhere; }
+    .icon { display:inline-block; flex-shrink:0; width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .icon-button { width:36px; height:36px; display:grid; place-items:center; padding:7px; border:0; border-radius:6px; background:var(--surface-soft); color:var(--muted); }
+    .icon-button:hover { background:var(--self-bg); color:var(--brand-strong); }
+    .header-mark, .header-trophy { width:32px; height:32px; display:grid; place-items:center; border-radius:6px; background:var(--brand-soft); color:var(--brand); }
+    .header-mark .icon, .header-trophy .icon { width:21px; height:21px; }
+    .header-trophy { justify-self:end; }
+    .embedded-quiz #quizApp[data-screen="home"] .header { position:absolute; top:16px; right:20px; min-height:36px; width:36px; padding:0; border:0; display:block; background:transparent; }
+    .embedded-quiz #quizApp[data-screen="home"] .header-mark, .embedded-quiz #quizApp[data-screen="home"] .brand { display:none; }
+    .embedded-quiz .home-head { padding-right:70px; }
+    .screen { flex:1; min-height:0; display:flex; flex-direction:column; }
+    #homeScreen { background:var(--surface); }
+    .home-head { display:flex; align-items:center; gap:12px; padding:20px 20px 16px; }
+    .portrait { display:block; width:36px; height:36px; border-radius:50%; background:#a1cfd1; object-fit:cover; flex-shrink:0; }
+    h1 { margin:0; font-size:17px; font-weight:650; line-height:1.4; }
+    .sub { margin-top:4px; font-size:11px; color:var(--muted); line-height:1.5; font-weight:500; }
+    .home-modes { margin:0 20px; }
+    .stage-meta { padding:12px 20px 14px; display:flex; justify-content:space-between; gap:8px; color:var(--muted); font-size:11px; }
+    .stage-meta strong { color:var(--ink); font-weight:600; }
+    .stage-list { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; padding:0 16px 12px; }
+    .stage { width:100%; display:grid; grid-template-columns:minmax(0,1fr) 39px; gap:8px; align-items:center; border:0; background:transparent; color:var(--ink); text-align:left; padding:0; margin-bottom:7px; }
+    .stage-main { display:grid; grid-template-columns:28px minmax(0,1fr) 40px; align-items:center; gap:8px; width:100%; min-height:51px; padding-left:10px; border:1px solid var(--line); border-radius:8px; background:var(--surface); overflow:hidden; }
+    .stage.active .stage-main { border-color:#91b2ee; background:var(--brand-soft); }
+    .stage:disabled .stage-main { background:var(--surface-soft); }
+    .stage:disabled .stage-title { color:var(--muted); }
+    .stage:disabled .stage-award { opacity:.5; }
+    .stage-award { width:27px; height:27px; border-radius:6px; display:grid; place-items:center; background:var(--surface-soft); color:var(--muted); }
+    .stage-award .icon { width:20px; height:20px; }
+    .stage-copy { min-width:0; padding:6px 0; }
+    .stage-title { display:block; font-size:13px; font-weight:600; color:var(--ink); line-height:1.4; }
+    .stage-category { display:block; margin-top:3px; font-size:11px; line-height:1.35; color:var(--muted); overflow-wrap:anywhere; }
+    .stage-rank { align-self:stretch; display:grid; place-items:center; font-size:23px; font-weight:650; background:var(--surface-soft); color:var(--muted); font-variant-numeric:tabular-nums; }
+    .rank-S { background:#fff4d8; color:#8a641c; }
+    .rank-A { background:#fff0f1; color:var(--rose); }
+    .rank-B { background:var(--brand-soft); color:var(--brand-strong); }
+    .rank-C { background:#e7f3eb; color:var(--success); }
+    .rank-D { background:#eceef1; color:var(--muted); }
+    .stage-status { width:37px; min-height:35px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:1px; color:var(--muted); font-size:9px; font-weight:600; line-height:1.3; }
+    .stage-status .icon { width:18px; height:18px; }
+    .stage-status.passed { background:#e7f3eb; color:var(--success); border-radius:6px; padding:4px 2px; }
+    .stage-status.perfect { background:#fff0f1; color:var(--rose); border-radius:6px; aspect-ratio:1; min-height:37px; }
+    .home-bottom { flex-shrink:0; border-top:1px solid var(--line); padding:12px 20px max(17px,env(safe-area-inset-bottom)); background:var(--surface); }
+    .primary, .secondary { min-height:46px; padding:11px 16px; border-radius:8px; font-weight:500; display:flex; justify-content:center; align-items:center; gap:8px; line-height:1.5; }
+    .primary { width:100%; border:1px solid transparent; background:var(--brand); color:#fff; }
+    .primary:hover { background:var(--brand-strong); }
+    .primary:active, .secondary:active { transform:translateY(1px); }
+    .secondary { background:var(--surface-soft); border:1px solid transparent; color:var(--ink); }
+    .secondary:hover { background:#e7e8ec; }
+    .storage-error { color:var(--rose); font-size:12px; padding:8px 20px; margin:0; }
+    #quizScreen { background:var(--paper); }
+    .question-panel { flex:0 0 clamp(160px,23dvh,205px); display:flex; flex-direction:column; background:var(--question-bg); color:var(--ink); border-bottom:1px solid var(--line); }
+    .question-toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:12px 22px 0; }
+    .timer-box { width:45%; max-width:200px; }
+    .clock { display:flex; align-items:center; gap:4px; color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
+    .clock .icon { width:13px; height:13px; }
+    .clock strong { min-width:24px; font-weight:600; }
+    .time-track { height:3px; background:var(--line); overflow:hidden; margin-top:5px; border-radius:2px; }
+    .time-fill { height:100%; width:100%; background:var(--brand); transform-origin:left; }
+    .time-fill.urgent { background:var(--rose); }
+    .question-count { min-width:62px; padding:3px 10px; border-radius:6px; background:var(--surface); color:var(--muted); text-align:center; font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .question-area { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; padding:18px 24px 26px; }
+    .question { margin:0; font-size:27px; font-weight:550; text-align:center; line-height:1.4; overflow-wrap:anywhere; outline:none; }
+    .question.enter { animation:question-in .16s ease-out both; }
+    .phrase-core { color:var(--red); font-weight:750; }
+    .phrase-variable { color:var(--ink); font-weight:450; }
+    .question .phrase-core { color:var(--rose); font-weight:750; }
+    .question .phrase-variable { color:var(--ink); font-weight:400; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+    .choice-zone { flex:1; min-height:0; display:flex; flex-direction:column; padding:clamp(20px,4dvh,36px) 22px max(16px,env(safe-area-inset-bottom)); }
+    .answers-area { position:relative; flex:1; min-height:0; max-height:465px; display:flex; }
+    .answers { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(4,minmax(0,1fr)); gap:clamp(12px,2.8dvh,26px); }
+    .answer { min-height:0; width:100%; display:flex; align-items:center; justify-content:center; padding:10px 14px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:var(--surface); text-align:center; line-height:1.5; font-size:17px; font-weight:500; transition:background .18s,border-color .18s; }
+    .answer:hover:not(:disabled) { border-color:#91b2ee; background:var(--brand-soft); }
+    .answer:active:not(:disabled) { background:var(--self-bg); }
+    .answer-text { overflow-wrap:anywhere; max-width:100%; }
+    .answer[lang="en"] { font-size:16px; }
+    .answer.is-correct { color:var(--self-ink); background:var(--self-bg); border-color:#91b2ee; }
+    .answer.is-wrong { color:var(--rose); background:#fff0f1; border-color:#e9a8b2; }
+    .answer:disabled { opacity:1; }
+    .skip-area { flex:0 0 clamp(70px,12dvh,110px); display:flex; align-items:center; justify-content:center; padding-top:15px; }
+    .skip-button { width:53%; min-height:43px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--muted); font-size:14px; font-weight:500; padding:8px 15px; }
+    .skip-button:hover:not(:disabled) { color:var(--blue-dark); border-color:var(--blue); }
+    .skip-button:disabled { opacity:.6; }
+    .judge-layer { position:absolute; inset:0; z-index:2; display:grid; place-items:center; pointer-events:none; }
+    .judge-symbol { width:116%; max-width:470px; height:100%; max-height:470px; color:var(--rose); opacity:.9; display:grid; place-items:center; }
+    .judge-symbol .icon { width:100%; height:100%; stroke-width:1.9; }
+    .judge-symbol.is-wrong { color:var(--brand); }
+    .judge-symbol.is-wrong .icon { stroke-width:2.8; }
+    .result-body { flex:1; min-height:0; overflow:auto; padding:24px 22px; overscroll-behavior:contain; background:var(--surface); }
+    .result-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .stage-caption { font-size:11px; color:var(--muted); font-weight:500; line-height:1.5; }
+    .result-title { margin:5px 0 0; font-size:25px; font-weight:650; color:var(--ink); }
+    .result-seal { width:57px; height:66px; display:grid; place-items:center; border-radius:8px; font-size:42px; font-weight:650; animation:badge-pop .4s ease-out both; flex-shrink:0; }
+    .score-ring { position:relative; width:174px; height:174px; border-radius:50%; margin:24px auto 18px; display:grid; place-items:center; background:conic-gradient(var(--brand) calc(var(--score,0) * 1%),var(--surface-soft) 0); }
+    .score-ring::before { content:''; position:absolute; inset:7px; border-radius:50%; background:var(--surface); }
+    .score-inner { position:relative; text-align:center; }
+    .score { display:flex; align-items:baseline; justify-content:center; gap:3px; }
+    .score strong { font-size:58px; font-weight:650; line-height:1.1; font-variant-numeric:tabular-nums; }
+    .score span { font-size:21px; color:var(--muted); }
+    .score-label { margin-top:6px; color:var(--muted); font-size:11px; }
+    .result-note { min-height:20px; margin:0 0 20px; font-size:12px; text-align:center; color:var(--brand-strong); font-weight:500; }
+    .result-stats { display:flex; justify-content:center; flex-wrap:wrap; gap:10px 18px; margin-bottom:22px; color:var(--muted); font-size:11px; }
+    .result-stats strong { color:var(--ink); font-variant-numeric:tabular-nums; margin-left:4px; }
+    .review-title { margin:0; padding:17px 0 12px; font-size:13px; border-top:1px solid var(--line); }
+    .review-item { border-bottom:1px solid var(--line); padding:13px 0; }
+    .review-item summary { cursor:pointer; font-size:14px; line-height:1.6; overflow-wrap:anywhere; }
+    .review-item summary::marker { color:var(--blue); }
+    .review-ja { font-size:13px; line-height:1.7; margin-top:8px; }
+    .review-choice { color:var(--rose); font-size:12px; line-height:1.7; margin-top:7px; }
+    .review-note { color:var(--muted); font-size:12px; line-height:1.7; margin-top:8px; }
+    .result-bottom { border-top:1px solid var(--line); padding:14px 20px max(18px,env(safe-area-inset-bottom)); display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+    .result-bottom button { padding-left:8px; padding-right:8px; font-size:13px; }
+    dialog { width:min(420px,calc(100% - 32px)); padding:24px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:#fff; max-height:85dvh; overflow:auto; }
+    dialog::backdrop { background:#24252a45; }
+    .dialog-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+    dialog h2 { margin:0; font-size:20px; }
+    .setting-label { display:flex; justify-content:space-between; align-items:center; font-size:13px; margin:22px 0 13px; }
+    .setting-label output { color:var(--blue-dark); font-weight:700; font-variant-numeric:tabular-nums; }
+    input[type="range"] { width:100%; height:28px; accent-color:var(--blue); cursor:pointer; }
+    .segmented { display:grid; grid-template-columns:1fr 1fr; padding:3px; gap:3px; border:0; border-radius:8px; overflow:hidden; background:var(--surface-soft); }
+    .segmented button { min-height:36px; border:0; border-radius:6px; padding:7px; background:transparent; color:var(--muted); font-size:12px; font-weight:600; }
+    .segmented button[aria-pressed="true"] { background:var(--surface); color:var(--brand-strong); box-shadow:0 1px 3px #24252a12; }
+    .dialog-actions { display:grid; gap:10px; margin-top:26px; }
+    .pause-mark { width:48px; height:48px; display:grid; place-items:center; margin-bottom:16px; border-radius:8px; background:var(--brand-soft); color:var(--brand); }
+    .pause-mark .icon { width:24px; height:24px; }
+    .pause-caption { margin:10px 0 0; color:var(--muted); font-size:13px; }
+    .countdown { position:absolute; inset:0; z-index:3; background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:70px 28px 28px; }
+    .countdown-stage { color:var(--blue-dark); font-size:12px; font-weight:750; }
+    .countdown-title { font-size:21px; font-weight:650; margin-top:10px; overflow-wrap:anywhere; }
+    .countdown-value { font-size:112px; line-height:1.2; font-weight:650; color:var(--brand); min-height:135px; margin:26px 0 8px; font-variant-numeric:tabular-nums; }
+    .countdown-value.beat { animation:count-beat .6s ease-out both; }
+    .countdown-dots { display:flex; gap:10px; }
+    .countdown-dots span { width:28px; height:5px; border-radius:3px; background:var(--line); }
+    .countdown-dots .on { background:var(--blue); }
+    #quizScreen.counting > * { visibility:hidden; }
+    .effects { position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:6; }
+    .confetti { position:absolute; top:-18px; left:var(--x); width:8px; height:14px; background:var(--color); animation:confetti-fall var(--duration) var(--delay) cubic-bezier(.18,.6,.4,1) both; }
+    .confetti:nth-child(3n) { width:12px; height:6px; }
+    @keyframes confetti-fall { from { transform:translate3d(0,-20px,0) rotate(0); opacity:1; } to { transform:translate3d(var(--drift),102dvh,0) rotate(var(--spin)); opacity:0; } }
+    @keyframes count-beat { 0% { transform:scale(.65); opacity:0; } 25% { transform:scale(1.08); opacity:1; } 100% { transform:scale(1); opacity:1; } }
+    @keyframes badge-pop { 0% { transform:scale(.65); } 55% { transform:scale(1.1); } 100% { transform:scale(1); } }
+    @keyframes question-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+    @media(max-width:360px) { .header { padding-left:13px; padding-right:13px; } .brand { font-size:18px; } .stage-list { padding-left:12px; padding-right:12px; } .stage-main { gap:6px; } .question { font-size:24px; } .choice-zone { padding-left:18px; padding-right:18px; } .answer { font-size:16px; } .answer[lang="en"] { font-size:16px; } }
+    @media(max-height:700px) { .home-head { padding-top:10px; padding-bottom:8px; } .stage-main { min-height:46px; } .stage { margin-bottom:6px; } .question-panel { flex-basis:155px; } .question-toolbar { padding-top:10px; } .question { font-size:24px; } .question-area { padding-top:14px; padding-bottom:20px; } .choice-zone { padding-top:20px; padding-bottom:max(12px,env(safe-area-inset-bottom)); } .answers { gap:14px; } .skip-area { flex-basis:70px; } .answer { font-size:16px; padding:8px 12px; } .answer[lang="en"] { font-size:16px; } .score-ring { width:150px; height:150px; margin-top:18px; margin-bottom:14px; } .score strong { font-size:50px; } }
+    @media(max-height:600px) { .header { min-height:50px; padding-top:4px; padding-bottom:4px; } .question-panel { flex-basis:145px; } .question-area { padding:10px 22px 16px; } .question { font-size:22px; } .choice-zone { padding-top:16px; } .answers { gap:10px; } .skip-area { flex-basis:60px; padding-top:12px; } .skip-button { min-height:38px; font-size:12px; } .answer { font-size:16px; padding:6px 10px; } .answer[lang="en"] { font-size:15px; } }
+    @media(max-height:650px) { .embedded-quiz .header { min-height:46px; padding-top:4px; padding-bottom:4px; } .embedded-quiz .question-panel { flex-basis:120px; } .embedded-quiz .question-area { padding:10px 22px 16px; } .embedded-quiz .question { font-size:21px; line-height:1.35; } .embedded-quiz .choice-zone { padding-top:12px; padding-bottom:max(12px,env(safe-area-inset-bottom)); } .embedded-quiz .answers { gap:8px; } .embedded-quiz .skip-area { flex-basis:50px; padding-top:8px; } .embedded-quiz .answer { font-size:15px; line-height:1.4; padding:6px 10px; } }
+    @media(max-height:480px) { #quizScreen { overflow:auto; } .question-panel { flex:none; min-height:140px; } .choice-zone { flex:none; min-height:320px; } }
+    @media(prefers-reduced-motion:reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+  </style>
+</head>
+<body class="embedded-quiz">
+  <div class="app" id="quizApp">
+    <header class="header">
+      <span class="header-mark" id="homeMark" aria-hidden="true"></span>
+      <button class="icon-button" id="backButton" type="button" aria-label="中断する" title="中断する" hidden></button>
+      <span class="brand" id="headerTitle">My Phrase.</span>
+      <button class="icon-button" id="settingsButton" type="button" aria-label="出題設定" title="出題設定"></button>
+      <button class="icon-button" id="pauseButton" type="button" aria-label="一時停止" title="一時停止" hidden></button>
+      <span class="header-trophy" id="headerTrophy" hidden><span id="quizTrophy" aria-hidden="true"></span><span class="sr-only">正解 <span id="correctTally">0</span> / 10</span></span>
+    </header>
+    <p class="storage-error" id="storageError" role="status" hidden>このブラウザでは記録を保存できません。</p>
+    <main class="screen" id="homeScreen">
+      <div class="home-head"><img class="portrait" src="assets/teacher-cutout.png" alt="" width="36" height="36"><div><h1>四択トレーニング</h1><div class="sub" id="homeProgress">0 / 10 CLEAR</div></div></div>
+      <div class="segmented home-modes" role="group" aria-label="出題方向"><button type="button" data-home-mode="en-ja" aria-pressed="true">英語 → 日本語</button><button type="button" data-home-mode="ja-en" aria-pressed="false">日本語 → 英語</button></div>
+      <div class="stage-meta"><span><strong>10</strong> 問</span><span>1問 <strong id="homeSeconds">8</strong> 秒</span><span>合格 <strong>80</strong> %</span></div>
+      <div class="stage-list" id="stageList" aria-label="ステージ"></div>
+      <div class="home-bottom"><button class="primary" id="startButton" type="button"></button></div>
+    </main>
+    <section class="screen" id="quizScreen" aria-label="4択チャレンジ" hidden>
+      <div class="question-panel">
+        <div class="question-toolbar"><div class="timer-box"><div class="clock"><span id="clockIcon" aria-hidden="true"></span><strong id="secondsLeft">8.0</strong><span>秒</span></div><div class="time-track" id="timerProgress" role="progressbar" aria-label="残り時間" aria-valuemin="0" aria-valuemax="8" aria-valuenow="8"><div class="time-fill" id="timeFill"></div></div></div><span class="question-count" id="questionCount"></span></div>
+        <div class="question-area"><div class="sr-only" id="directionLabel"></div><h1 class="question" id="questionText" tabindex="-1"></h1></div>
+      </div>
+      <div class="sr-only" id="feedback" role="status" aria-live="polite"></div>
+      <div class="choice-zone">
+        <div class="answers-area"><div class="answers" id="answerList" aria-label="回答"></div><div class="judge-layer" id="judgeOverlay" aria-hidden="true" hidden><div class="judge-symbol" id="judgeSymbol"></div></div></div>
+        <div class="skip-area"><button class="skip-button" id="skipButton" type="button">わからない</button></div>
+      </div>
+    </section>
+    <section class="screen" id="resultScreen" aria-label="チャレンジ結果" hidden>
+      <div class="result-body">
+        <div class="result-heading"><div><div class="stage-caption" id="resultStage"></div><h1 class="result-title" id="resultTitle" tabindex="-1"></h1></div><div class="result-seal" id="resultSeal" aria-hidden="true"></div></div>
+        <div class="score-ring" id="scoreRing"><div class="score-inner"><div class="score"><strong id="scoreValue">0</strong><span>%</span></div><div class="score-label">正答率</div></div></div>
+        <p class="result-note" id="resultNote"></p>
+        <div class="result-stats"><span>正解<strong id="correctValue"></strong></span><span>時間切れ<strong id="timeoutValue"></strong></span><span>わからない<strong id="skipValue"></strong></span><span>ベスト<strong id="bestValue"></strong></span></div>
+        <h2 class="review-title" id="reviewTitle"></h2><div id="reviewList"></div>
+      </div>
+      <div class="result-bottom"><button class="secondary" id="homeButton" type="button"></button><button class="primary" id="resultAction" type="button"></button></div>
+    </section>
+    <div class="countdown" id="countdownOverlay" role="status" aria-live="polite" hidden><div class="countdown-stage" id="countdownStage"></div><div class="countdown-title" id="countdownTitle"></div><div class="countdown-value" id="countdownValue"></div><div class="countdown-dots" id="countdownDots" aria-hidden="true"></div></div>
+    <div class="effects" id="effects" aria-hidden="true"></div>
+  </div>
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="dialog-head"><h2 id="settingsTitle">出題設定</h2><button class="icon-button" id="closeSettings" type="button" aria-label="設定を閉じる" title="閉じる"></button></div>
+    <div class="setting-label">出題方向</div><div class="segmented" role="group" aria-label="出題方向"><button type="button" data-mode="en-ja" aria-pressed="true">英語 → 日本語</button><button type="button" data-mode="ja-en" aria-pressed="false">日本語 → 英語</button></div>
+    <label class="setting-label" for="limitSlider">1問の制限時間<output id="limitOutput" for="limitSlider">8秒</output></label><input id="limitSlider" type="range" min="4" max="15" step="1" value="8">
+    <div class="dialog-actions"><button class="primary" id="applySettings" type="button">設定する</button></div>
+  </dialog>
+  <dialog id="pauseDialog" aria-labelledby="pauseTitle"><div class="pause-mark" id="pauseMark" aria-hidden="true"></div><h2 id="pauseTitle">ひとやすみ</h2><p class="pause-caption" id="pauseCaption"></p><div class="dialog-actions"><button class="primary" id="resumeButton" type="button">続ける</button><button class="secondary" id="leaveButton" type="button">ステージに戻る</button></div></dialog>
+  <script src="phrase-additions.js"></script>
+  <script src="phrase-explanations.js"></script>
+  <script id="timed-quiz-app">
+  (() => {
+    'use strict';
+    const KEY = 'my-phrase-timed-quiz-v1';
+    const LEGACY_KEY = 'my-phrase-timed-quiz-prototype-v1';
+    const EMBEDDED = true;
+    const PASS = 80;
+    const COUNT = 10;
+    const $ = id => document.getElementById(id);
+    const escape = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const paths = {
+      play:'<path d="m9 5 10 7-10 7V5Z"/>', pause:'<path d="M9 4H5v16h4zM19 4h-4v16h4z"/>',
+      back:'<path d="m15 18-6-6 6-6"/>', arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>', check:'<path d="m20 6-11 11-5-5"/>',
+      x:'<path d="m18 6-12 12M6 6l12 12"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+      circle:'<circle cx="12" cy="12" r="9"/>',
+      lock:'<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/>',
+      retry:'<path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/>', settings:'<path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+      star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>',
+      zap:'<path d="m13 2-3 8H3l8 12 3-8h7L13 2Z"/>',
+      trophy:'<path d="M8 21h8m-4-4v4M7 4h10v5a5 5 0 0 1-10 0V4Zm0 1H4v3a4 4 0 0 0 4 4m9-7h3v3a4 4 0 0 1-4 4"/>'
+    };
+    const icon = name => '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">' + paths[name] + '</svg>';
+    const phrases = (globalThis.PHRASE_ADDITIONS || []).map(p => ({id:p.id, number:p.number, category:p.category, en:p.examples[0].text, ja:p.examples[0].ja, parts:p.examples[0].parts}));
+    const categories = [...new Set(phrases.map(p => p.category))];
+    const stages = categories.map((title, index) => ({index, title, phrases:phrases.filter(p => p.category === title)}));
+    const synonyms = [[174,180],[131,133,136],[147,148],[137,138],[148,191]];
+    const shuffle = (items, random = Math.random) => {
+      const copy = [...items];
+      for (let i=copy.length-1;i>0;i--) { const j=Math.floor(random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; }
+      return copy;
+    };
+    const normalized = value => value.trim().toLowerCase().replace(/[‘’]/g,"'");
+    function makeQuestion(phrase, direction, random = Math.random) {
+      const field = direction === 'ja-en' ? 'en' : 'ja';
+      const banned = new Set(synonyms.filter(group => group.includes(phrase.number)).flat());
+      const preferred = shuffle(phrases.filter(p => p.category === phrase.category && p.id !== phrase.id),random);
+      const fallback = shuffle(phrases.filter(p => p.category !== phrase.category),random);
+      const choices = [phrase];
+      const seen = new Set([normalized(phrase[field])]);
+      for (const candidate of [...preferred,...fallback]) {
+        const key=normalized(candidate[field]);
+        if (banned.has(candidate.number) || seen.has(key)) continue;
+        seen.add(key); choices.push(candidate);
+        if (choices.length===4) break;
+      }
+      if (choices.length!==4) throw new Error('Not enough distinct answer choices');
+      return {phrase, choices:shuffle(choices,random), direction};
+    }
+    class Round {
+      constructor(stageIndex, settings, random = Math.random) {
+        if (!stages[stageIndex]) throw new Error('Unknown stage');
+        this.stageIndex=stageIndex;
+        this.settings={...settings};
+        this.questions=shuffle(stages[stageIndex].phrases,random).slice(0,COUNT).map(p=>makeQuestion(p,settings.direction,random));
+        this.answers=[];
+      }
+      get current() {return this.questions[this.answers.length];}
+      get finished() {return this.answers.length===this.questions.length;}
+      record(id, elapsedMs) {
+        if (this.finished) return null;
+        const question=this.current;
+        if (id!==null && !question.choices.some(p=>p.id===id)) return null;
+        const timeout=elapsedMs>=this.settings.seconds*1000;
+        const selected=timeout ? null : id;
+        const answer={question,selected,timeout,skipped:!timeout && id===null,correct:selected===question.phrase.id,elapsedMs:Math.min(this.settings.seconds*1000,Math.max(0,elapsedMs))};
+        this.answers.push(answer);
+        return answer;
+      }
+      result() {
+        const correct=this.answers.filter(a=>a.correct).length;
+        const total=this.questions.length;
+        const percent=Math.round(correct/total*100);
+        return {correct,total,percent,passed:this.finished && percent>=PASS,timeouts:this.answers.filter(a=>a.timeout).length,skips:this.answers.filter(a=>a.skipped).length,missed:this.answers.filter(a=>!a.correct)};
+      }
+    }
+    function cleanProgress(raw) {
+      const best=Array.from({length:stages.length},(_,i)=>{
+        const value=raw?.best?.[i];
+        return Number.isInteger(value) && value>=0 && value<=100 && value%10===0 ? value : 0;
+      });
+      const seconds=Number(raw?.settings?.seconds);
+      return {version:1,best,played:best.map((n,i)=>n>0 || raw?.played?.[i]===true),settings:{seconds:Number.isInteger(seconds) && seconds>=4 && seconds<=15 ? seconds:8,direction:raw?.settings?.direction==='ja-en'?'ja-en':'en-ja'}};
+    }
+    const rankFor=percent=>percent>=100?'S':percent>=90?'A':percent>=80?'B':percent>=60?'C':'D';
+    function isUnlocked(index, progress) {
+      if (!Number.isInteger(index) || index<0 || index>=stages.length) return false;
+      for (let i=0;i<index;i++) if (progress.best[i]<PASS) return false;
+      return true;
+    }
+    let progress;
+    try {
+      const saved=localStorage.getItem(KEY);
+      const legacy=!saved && LEGACY_KEY ? localStorage.getItem(LEGACY_KEY):null;
+      progress=cleanProgress(JSON.parse(saved||legacy||'{}'));
+      if (legacy) {
+        try {localStorage.setItem(KEY,JSON.stringify(progress));} catch {$('storageError').hidden=false;}
+      }
+    } catch {progress=cleanProgress({});}
+    let hostActive=!EMBEDDED || globalThis.parent===globalThis;
+    let phase='home', round=null, selectedStage=0, deadline=0, remaining=0, frame=null, feedbackTimer=null, judgeTimer=null, countTimer=null, effectTimer=null, resultFrame=null, resumeCountdown=false, draft={...progress.settings};
+    function save() {try {localStorage.setItem(KEY,JSON.stringify(progress));} catch {$('storageError').hidden=false;}}
+    function english(p) {return p.parts.map(part=>'<'+(part.variable?'span':'strong')+' class="'+(part.variable?'phrase-variable':'phrase-core')+'">'+escape(part.text)+'</'+(part.variable?'span':'strong')+'>').join('');}
+    function stopTimers() {
+      if (frame!==null) cancelAnimationFrame(frame);
+      for (const timer of [feedbackTimer,judgeTimer,countTimer]) if (timer!==null) clearTimeout(timer);
+      frame=null;feedbackTimer=null;judgeTimer=null;countTimer=null;$('judgeOverlay').hidden=true;
+    }
+    const reducedMotion=()=>globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches===true;
+    function animateClass(element,name) {
+      element.classList.remove(name);
+      // Restart CSS effects even when consecutive answers have the same outcome.
+      void element.offsetWidth;
+      element.classList.add(name);
+    }
+    function clearEffects() {
+      if (effectTimer!==null) clearTimeout(effectTimer);
+      if (resultFrame!==null) cancelAnimationFrame(resultFrame);
+      effectTimer=null;resultFrame=null;$('effects').innerHTML='';
+    }
+    function celebrate() {
+      if (reducedMotion() || document.hidden) return;
+      const colors=['#245dcc','#b42336','#e3bd62','#84b79a'];
+      $('effects').innerHTML=Array.from({length:44},(_,i)=>'<i class="confetti" style="--x:'+((i*37)%100)+'%;--color:'+colors[i%4]+';--delay:'+(i%9)*35+'ms;--duration:'+(1500+(i%7)*100)+'ms;--drift:'+((i%2?1:-1)*(20+i%8*10))+'px;--spin:'+(i%2?620:-520)+'deg"></i>').join('');
+      effectTimer=setTimeout(()=>{$('effects').innerHTML='';effectTimer=null;},2500);
+    }
+    function updateMetrics() {
+      $('correctTally').textContent=round.answers.filter(a=>a.correct).length;
+      $('headerTrophy').title='正解 '+$('correctTally').textContent+' / '+COUNT;
+    }
+    function screen(name) {
+      $('quizApp').dataset.screen=name;
+      for (const id of ['home','quiz','result']) $(id+'Screen').hidden=id!==name;
+      $('settingsButton').hidden=name!=='home';
+      $('pauseButton').hidden=true;
+      $('backButton').hidden=name!=='quiz';
+      $('homeMark').hidden=name==='quiz';
+      $('headerTrophy').hidden=name!=='quiz';
+      $('headerTitle').textContent=name==='quiz'?'Section '+(round.stageIndex+1):name==='result'?'結果':'My Phrase.';
+    }
+    function renderHome() {
+      stopTimers();clearEffects();phase='home';screen('home');
+      $('countdownOverlay').hidden=true;
+      const unlocked=stages.filter(s=>isUnlocked(s.index,progress));
+      if (!isUnlocked(selectedStage,progress)) selectedStage=unlocked.at(-1)?.index||0;
+      const cleared=progress.best.filter(n=>n>=PASS).length;
+      $('homeProgress').textContent=cleared===stages.length?'ALL STAGES CLEAR':String(cleared).padStart(2,'0')+' / '+stages.length+' CLEAR';
+      $('homeSeconds').textContent=progress.settings.seconds;
+      for (const button of document.querySelectorAll('[data-home-mode]')) button.setAttribute('aria-pressed',String(button.dataset.homeMode===progress.settings.direction));
+      $('stageList').innerHTML='';
+      for (const stage of stages) {
+        const allowed=isUnlocked(stage.index,progress), best=progress.best[stage.index], passed=best>=PASS;
+        const rank=progress.played[stage.index]?rankFor(best):'';
+        const row=document.createElement('button');
+        row.type='button'; row.disabled=!allowed;
+        row.className='stage'+(stage.index===selectedStage?' active':'')+(passed?' cleared':'');
+        row.setAttribute('aria-pressed',String(stage.index===selectedStage));
+        row.title=allowed?(rank?'ベスト '+best+'% / ランク '+rank:'未挑戦'):'前のステージに合格すると解放';
+        row.setAttribute('aria-label','Section '+(stage.index+1)+' '+stage.title+' / '+row.title);
+        row.innerHTML='<span class="stage-main"><span class="stage-award" aria-hidden="true">'+icon('trophy')+'</span><span class="stage-copy"><span class="stage-title">Section '+(stage.index+1)+'</span><span class="stage-category">'+escape(stage.title)+'</span></span><span class="stage-rank'+(rank?' rank-'+rank:'')+'">'+(rank||'−')+'</span></span><span class="stage-status'+(allowed && best===100?' perfect':allowed && passed?' passed':'')+'" aria-hidden="true">'+(!allowed?icon('lock'):best===100?'満点':passed?icon('check')+'<span>合格</span>':stage.index===selectedStage?icon('play'):'')+'</span>';
+        row.addEventListener('click',()=>{selectedStage=stage.index;renderHome();});
+        $('stageList').appendChild(row);
+      }
+      $('startButton').innerHTML=icon('play')+'Section '+(selectedStage+1)+' を始める';
+    }
+    function start(stageIndex) {
+      if (!isUnlocked(stageIndex,progress)) return;
+      stopTimers();clearEffects();selectedStage=stageIndex;round=new Round(stageIndex,progress.settings);
+      remaining=round.settings.seconds*1000;updateMetrics();screen('quiz');beginCountdown();
+    }
+    function beginCountdown() {
+      stopTimers();phase='countdown';resumeCountdown=false;
+      $('quizScreen').classList.add('counting');$('quizScreen').classList.remove('urgent');
+      $('countdownOverlay').hidden=false;
+      $('countdownStage').textContent='STAGE '+String(round.stageIndex+1).padStart(2,'0');
+      $('countdownTitle').textContent=stages[round.stageIndex].title;
+      $('pauseButton').disabled=false;$('backButton').disabled=false;
+      $('skipButton').disabled=true;
+      let count=3;
+      const beat=()=>{
+        if (phase!=='countdown') return;
+        if (document.hidden || !hostActive) {pause();return;}
+        if (count===0) {$('countdownOverlay').hidden=true;$('quizScreen').classList.remove('counting');showQuestion();return;}
+        $('countdownValue').textContent=count;
+        $('countdownDots').innerHTML=[3,2,1].map(n=>'<span class="'+(n>=count?'on':'')+'"></span>').join('');
+        animateClass($('countdownValue'),'beat');count--;
+        countTimer=setTimeout(beat,600);
+      };
+      beat();
+    }
+    function updateClock(ms) {
+      const left=Math.max(0,ms), ratio=Math.min(1,left/(round.settings.seconds*1000));
+      $('secondsLeft').textContent=(left/1000).toFixed(1);
+      $('timeFill').style.transform='scaleX('+ratio+')';
+      $('timeFill').classList.toggle('urgent',ratio<=0.25);
+      $('quizScreen').classList.toggle('urgent',ratio<=0.25 && phase==='question');
+      $('timerProgress').setAttribute('aria-valuenow',(left/1000).toFixed(1));
+    }
+    function tick() {
+      if (phase!=='question') return;
+      remaining=Math.max(0,deadline-performance.now()); updateClock(remaining);
+      if (remaining<=0) {submit(null);return;}
+      frame=requestAnimationFrame(tick);
+    }
+    function showQuestion() {
+      if (round.finished) {showResult();return;}
+      phase='question';
+      $('judgeOverlay').hidden=true;
+      updateMetrics();
+      const q=round.current, ja=q.direction==='ja-en';
+      $('questionCount').textContent=(round.answers.length+1)+' / '+round.questions.length;
+      $('directionLabel').innerHTML=(ja?'日本語':'ENGLISH')+icon('arrow')+(ja?'ENGLISH':'日本語');
+      $('questionText').setAttribute('lang',ja?'ja':'en');
+      $('questionText').innerHTML=ja?escape(q.phrase.ja):english(q.phrase);
+      animateClass($('questionText'),'enter');
+      $('feedback').textContent='';
+      $('answerList').innerHTML='';
+      q.choices.forEach(choice=>{
+        const button=document.createElement('button');button.type='button';button.className='answer';
+        button.setAttribute('lang',ja?'en':'ja');button.dataset.id=choice.id;
+        button.innerHTML='<span class="answer-text">'+escape(ja?choice.en:choice.ja)+'</span>';
+        button.addEventListener('click',()=>submit(choice.id));$('answerList').appendChild(button);
+      });
+      $('pauseButton').disabled=false;$('backButton').disabled=false;
+      $('skipButton').disabled=false;
+      $('timerProgress').setAttribute('aria-valuemax',round.settings.seconds);
+      remaining=round.settings.seconds*1000;deadline=performance.now()+remaining;updateClock(remaining);
+      $('questionText').focus({preventScroll:true});
+      if (document.hidden || !hostActive) pause(); else frame=requestAnimationFrame(tick);
+    }
+    function submit(id) {
+      if (phase!=='question') return;
+      const elapsed=round.settings.seconds*1000-(deadline-performance.now());
+      const answer=round.record(id,elapsed);
+      if (!answer) return;
+      phase='feedback';stopTimers();updateClock(Math.max(0,round.settings.seconds*1000-answer.elapsedMs));
+      updateMetrics();
+      $('pauseButton').disabled=true;$('backButton').disabled=true;
+      $('skipButton').disabled=true;
+      for (const button of $('answerList').children) {
+        button.disabled=true;
+        if (button.dataset.id===answer.selected) button.classList.add('picked');
+        if (button.dataset.id===answer.question.phrase.id) {button.classList.add('is-correct');button.setAttribute('aria-label',(answer.question.direction==='ja-en'?answer.question.phrase.en:answer.question.phrase.ja)+'（正解）');}
+        else if (button.dataset.id===answer.selected) button.classList.add('is-wrong');
+      }
+      $('feedback').textContent=answer.correct?'正解':answer.timeout?'時間切れ。不正解':'不正解';
+      $('judgeSymbol').className='judge-symbol'+(answer.correct?'':' is-wrong');
+      $('judgeSymbol').innerHTML=icon(answer.correct?'circle':'x');
+      $('judgeOverlay').hidden=false;
+      judgeTimer=setTimeout(()=>{$('judgeOverlay').hidden=true;judgeTimer=null;},answer.correct?500:650);
+      feedbackTimer=setTimeout(()=>{feedbackTimer=null;showQuestion();},answer.correct?650:1200);
+    }
+    function pause() {
+      if (phase!=='question' && phase!=='countdown') return;
+      resumeCountdown=phase==='countdown';
+      if (!resumeCountdown) {
+        remaining=Math.max(0,deadline-performance.now());
+        if (remaining<=0) {submit(null);return;}
+      }
+      stopTimers();phase='paused';updateClock(remaining);$('countdownOverlay').hidden=true;
+      $('pauseCaption').textContent='STAGE '+String(round.stageIndex+1).padStart(2,'0')+' · '+(round.answers.length+1)+' / '+round.questions.length;
+      if (!$('pauseDialog').open) $('pauseDialog').showModal();
+    }
+    function resume() {
+      if (phase!=='paused' || document.hidden || !hostActive) return;
+      if ($('pauseDialog').open) $('pauseDialog').close();
+      if (resumeCountdown) {beginCountdown();return;}
+      phase='question';deadline=performance.now()+remaining;frame=requestAnimationFrame(tick);
+    }
+    function showResult() {
+      stopTimers();clearEffects();phase='result';screen('result');
+      const result=round.result(), index=round.stageIndex;
+      const newlyUnlocked=result.passed && index<stages.length-1 && !isUnlocked(index+1,progress);
+      progress.best[index]=Math.max(progress.best[index],result.percent);progress.played[index]=true;save();
+      $('resultStage').textContent='STAGE '+String(index+1).padStart(2,'0')+' / '+stages[index].title;
+      $('resultTitle').textContent=result.passed?(index===stages.length-1?'全ステージ合格':'合格'):'不合格';
+      const rank=rankFor(result.percent);
+      $('resultSeal').className='result-seal rank-'+rank;$('resultSeal').textContent=rank;
+      $('resultSeal').setAttribute('aria-label','ランク '+rank);$('resultSeal').setAttribute('aria-hidden','false');
+      $('scoreValue').textContent=result.percent;$('correctValue').textContent=result.correct+' / '+result.total;
+      $('resultNote').textContent=newlyUnlocked?'STAGE '+String(index+2).padStart(2,'0')+' 解放':result.passed?'合格基準 80%':'合格まで あと'+(8-result.correct)+'問';
+      const started=performance.now();
+      const drawScore=()=>{
+        const ratio=reducedMotion()?1:Math.min(1,(performance.now()-started)/700);
+        $('scoreRing').style.setProperty('--score',result.percent*(1-Math.pow(1-ratio,3)));
+        if (ratio<1) resultFrame=requestAnimationFrame(drawScore); else resultFrame=null;
+      };
+      drawScore();if (result.passed) celebrate();
+      $('timeoutValue').textContent=result.timeouts+' 問';$('bestValue').textContent=progress.best[index]+'%';
+      $('skipValue').textContent=result.skips+' 問';
+      $('reviewTitle').textContent=result.missed.length?'振り返り · '+result.missed.length+'問':'全問正解';
+      $('reviewList').innerHTML='';
+      for (const answer of result.missed) {
+        const p=answer.question.phrase, choice=answer.question.choices.find(c=>c.id===answer.selected), notes=globalThis.PHRASE_EXPLANATIONS?.[p.number];
+        const item=document.createElement('details');item.className='review-item';
+        item.innerHTML='<summary lang="en">'+english(p)+'</summary><div class="review-ja">'+escape(p.ja)+'</div><div class="review-choice">'+(answer.timeout?'時間切れ':answer.skipped?'わからない':escape('選んだ回答：'+(answer.question.direction==='ja-en'?choice?.en:choice?.ja)))+'</div>'+(notes?'<div class="review-note">'+escape(notes[0])+'</div>':'');
+        $('reviewList').appendChild(item);
+      }
+      $('homeButton').innerHTML=icon('back')+'ステージ';
+      const next=result.passed && index<stages.length-1;
+      $('resultAction').innerHTML=icon(next?'arrow':'retry')+(next?'次のステージ':'もう一度');
+      $('resultAction').onclick=()=>start(next?index+1:index);
+      $('resultTitle').focus({preventScroll:true});
+    }
+    function bind() {
+      if (EMBEDDED) globalThis.addEventListener?.('message',event=>{
+        if (event.source!==globalThis.parent || globalThis.parent===globalThis) return;
+        const expectedOrigin=globalThis.location.protocol==='file:'?'null':globalThis.location.origin;
+        if (event.origin!==expectedOrigin || event.data?.type!=='my-phrase:quiz-activity' || typeof event.data.active!=='boolean') return;
+        hostActive=event.data.active;
+        if (!hostActive) pause();
+      });
+      $('settingsButton').innerHTML=icon('settings');$('closeSettings').innerHTML=icon('x');
+      $('homeMark').innerHTML=icon('trophy');$('quizTrophy').innerHTML=icon('trophy');
+      $('backButton').innerHTML=icon('x');$('pauseButton').innerHTML=icon('pause');$('pauseMark').innerHTML=icon('pause');$('clockIcon').innerHTML=icon('clock');
+      $('startButton').addEventListener('click',()=>start(selectedStage));
+      $('skipButton').addEventListener('click',()=>submit(null));
+      for (const button of document.querySelectorAll('[data-home-mode]')) button.addEventListener('click',()=>{
+        progress.settings.direction=button.dataset.homeMode;save();renderHome();
+      });
+      $('homeButton').addEventListener('click',renderHome);
+      $('backButton').addEventListener('click',pause);$('pauseButton').addEventListener('click',pause);
+      $('resumeButton').addEventListener('click',resume);
+      $('leaveButton').addEventListener('click',()=>{phase='home';$('pauseDialog').close();renderHome();});
+      $('pauseDialog').addEventListener('cancel',event=>{event.preventDefault();resume();});
+      $('settingsButton').addEventListener('click',()=>{
+        draft={...progress.settings};$('limitSlider').value=draft.seconds;$('limitOutput').textContent=draft.seconds+'秒';
+        for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed',String(b.dataset.mode===draft.direction));
+        $('settingsDialog').showModal();
+      });
+      $('closeSettings').addEventListener('click',()=>$('settingsDialog').close());
+      for (const button of document.querySelectorAll('[data-mode]')) button.addEventListener('click',()=>{
+        draft.direction=button.dataset.mode;
+        for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed',String(b===button));
+      });
+      $('limitSlider').addEventListener('input',()=>{$('limitOutput').textContent=$('limitSlider').value+'秒';});
+      $('applySettings').addEventListener('click',()=>{progress.settings=cleanProgress({settings:{seconds:Number($('limitSlider').value),direction:draft.direction}}).settings;save();$('settingsDialog').close();renderHome();});
+      document.addEventListener('visibilitychange',()=>{if (document.hidden) pause();});
+      document.addEventListener('keydown',event=>{
+        if (phase==='question' && /^[1-4]$/.test(event.key) && !event.repeat) {event.preventDefault();const choice=round.current.choices[Number(event.key)-1];submit(choice.id);}
+        else if (event.key==='Escape' && (phase==='question' || phase==='countdown')) {event.preventDefault();pause();}
+      });
+    }
+    globalThis.TimedQuiz={KEY,PASS,COUNT,stages,phrases,Round,makeQuestion,cleanProgress,isUnlocked,rankFor,shuffle,
+      snapshot:()=>({phase,progress,round,remaining}),start,submit,pause,resume,renderHome};
+    if (phrases.length!==100 || stages.length!==10 || stages.some(s=>s.phrases.length!==COUNT)) {
+      $('homeProgress').textContent='フレーズデータを読み込めませんでした。';$('startButton').textContent='データエラー';$('startButton').disabled=true;
+      return;
+    }
+    bind();renderHome();
+  })();
+  </script>
+</body>
+</html>

@@ -21,11 +21,13 @@ class Element {
     this.children = [];
     this.attributes = {};
     this.events = {};
+    this.dataset = {};
     const classes = new Set();
     this.classList = {
       add: (...values) => values.forEach(value => classes.add(value)),
       remove: (...values) => values.forEach(value => classes.delete(value)),
-      contains: value => classes.has(value)
+      contains: value => classes.has(value),
+      toggle: (value, force) => { const add = force ?? !classes.has(value); if (add) classes.add(value); else classes.delete(value); return add; }
     };
     this.options = this.children;
     this.disabled = false;
@@ -39,6 +41,9 @@ class Element {
   appendChild(child) { this.children.push(child); return child; }
   removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
   setAttribute(key, value) { this.attributes[key] = value; }
+  getAttribute(key) { return this.attributes[key] ?? null; }
+  removeAttribute(key) { delete this.attributes[key]; }
+  setCustomValidity(value) { this.validationMessage = value; }
   addEventListener(key, handler) { this.events[key] = handler; }
   showModal() { this.open = true; }
   close() { this.open = false; this.events.close?.(); }
@@ -51,6 +56,7 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
   const elements = new Map();
   const timers = new Map();
   const timerDelays = new Map();
+  const quizMessages = [];
   let timerId = 0;
   const randomMath = Object.create(Math);
   randomMath.random = () => {
@@ -61,11 +67,17 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
     if (!elements.has(selector)) elements.set(selector, new Element());
     return elements.get(selector);
   };
+  const views=['learnView','quizView','phrasesView','detailView','conversationView'].map(id=>{const view=element('#'+id);view.id=id;return view;});
+  const menuItems=['learnView','quizView','phrasesView'].map(id=>{const button=new Element();button.dataset.view=id;return button;});
+  const body=new Element();body.classList.add('practice-mode');
+  element('#quizFrame').dataset.src='timed-quiz.html';
+  element('#quizFrame').contentWindow={postMessage:(data,origin)=>quizMessages.push({data:plain(data),origin})};
   const context = vm.createContext({
     console, Math: randomMath, Date,
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
-    document: { querySelector: element, querySelectorAll: () => [], createElement: () => new Element() },
+    document: { body, querySelector: element, querySelectorAll: selector => selector==='.view'?views:selector==='#appMenu [data-view]'?menuItems:[], createElement: () => new Element() },
     window: {
+      location: {protocol:'https:',origin:'https://example.test'},
       setTimeout: (handler, delay) => { timers.set(++timerId, handler); timerDelays.set(timerId, delay); return timerId; },
       clearTimeout: id => timers.delete(id)
     }
@@ -99,10 +111,11 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
       workbook: () => workbookScenes,
       coverage: () => practiceCoverage,
       renderOptions, pickNextTopic, getCategories,
-      getPhraseExplanation, bindPhraseHelp, openPhraseHelp, closePhraseHelp
+      getPhraseExplanation, bindPhraseHelp, openPhraseHelp, closePhraseHelp,
+      setView, openAppMenu, closeAppMenu, activeView: () => activeView
     };
   `, context);
-  return { api: context.api, storage, element, pendingDelays: () => [...timers.keys()].map(id => timerDelays.get(id)), flush: () => {
+  return { api: context.api, storage, element, body, views, menuItems, quizMessages, pendingDelays: () => [...timers.keys()].map(id => timerDelays.get(id)), flush: () => {
     const first = timers.entries().next().value;
     if (!first) return false;
     timers.delete(first[0]);
@@ -943,3 +956,4 @@ test('Topic changes keep the choices visible and require no restart button', () 
 
 require('./workbook-checks.cjs')({test, assert, fs, path, loadApp, plain, Element, conversationKey});
 require('./phrase-help-checks.cjs')({test, assert, loadApp, plain, Element});
+require('./navigation-checks.cjs')({test, assert, loadApp, plain});
