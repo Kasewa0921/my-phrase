@@ -1450,6 +1450,7 @@
 
     function bindPhraseHelp(body, text, translation, customCore) {
       for (const part of body.querySelectorAll?.(".phrase-core") || []) {
+        if (!/[a-z]/i.test(part.textContent)) continue;
         part.setAttribute("role", "button");
         part.setAttribute("tabindex", "0");
         part.setAttribute("aria-haspopup", "dialog");
@@ -1459,7 +1460,7 @@
       let press = null, lastPointerType = "mouse", suppressClick = false;
       const targetOf = (event) => {
         const part = event.target?.closest?.(".phrase-core");
-        return part && body.contains(part) ? part : null;
+        return part && /[a-z]/i.test(part.textContent) && body.contains(part) ? part : null;
       };
       const cancel = () => {
         if (press) window.clearTimeout(press.timer);

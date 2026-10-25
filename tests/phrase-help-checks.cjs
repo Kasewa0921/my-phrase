@@ -109,4 +109,18 @@ module.exports = ({test, assert, loadApp, plain, Element}) => {
     assert.equal(sections[2].children[2].textContent, '<script>bad</script>');
     assert(!sections[2].children[1].innerHTML);
   });
+
+  test('Standalone punctuation is not focusable and does not open an explanation', () => {
+    const app = load();
+    const body = new Element();
+    const dot = new Element();
+    dot.textContent = '.';
+    dot.closest = () => dot;
+    body.contains = target => target === dot;
+    body.querySelectorAll = () => [dot];
+    app.api.bindPhraseHelp(body, "It's getting colder.", '寒くなってきた。', '');
+    assert(!dot.attributes.role);
+    body.events.click({target: dot, pointerType: 'mouse'});
+    assert.equal(app.element('#phraseHelp').open, false);
+  });
 };
