@@ -135,6 +135,22 @@
     .phrase-row:hover { background: var(--surface-soft); }
     .phrase-en { font-size: 18px; font-weight: 550; line-height: 1.5; overflow-wrap: anywhere; }
     .phrase-core { color: var(--rose); font-weight: 750; }
+    .message-text .phrase-core[role="button"] { cursor: help; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y pinch-zoom; border-radius: 2px; }
+    .message-text .phrase-core[role="button"]:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+    .phrase-help { position: fixed; inset: auto 0 0; width: min(100%, 560px); max-height: min(78dvh, 680px); margin: 0 auto; padding: 0; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; background: var(--surface); color: var(--ink); box-shadow: 0 -8px 40px #24252a14; overflow-y: auto; overscroll-behavior: contain; }
+    .phrase-help::backdrop { background: #24252a45; }
+    .phrase-help-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    .phrase-help h2 { flex: 1; min-width: 0; margin: 0; font-size: 20px; line-height: 1.5; overflow-wrap: anywhere; }
+    .phrase-help-close { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; padding: 8px; border: 0; border-radius: 6px; background: var(--surface-soft); color: var(--ink); }
+    .phrase-help-close:hover { background: var(--self-bg); }
+    .phrase-help-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .phrase-help-content { padding: 4px 20px max(20px, env(safe-area-inset-bottom)); }
+    .phrase-help section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .phrase-help section:last-child { border-bottom: 0; }
+    .phrase-help h3 { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 600; }
+    .phrase-help p { margin: 6px 0 0; font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
+    .phrase-help .help-meaning { font-size: 17px; font-weight: 600; }
+    .phrase-help .help-example { font-size: 16px; }
     .phrase-variable { color: #24252a; font-weight: 400; }
     .pattern-review { padding: 20px 0; border-top: 1px solid var(--line); line-height: 1.8; }
     .pattern-review h3 { font-size: 14px; margin: 0 0 14px; font-weight: 600; }
@@ -321,10 +337,19 @@
     </main>
   </div>
 
+  <dialog class="phrase-help" id="phraseHelp" aria-labelledby="phraseHelpTitle">
+    <header class="phrase-help-head">
+      <h2 id="phraseHelpTitle" lang="en"></h2>
+      <button class="phrase-help-close" id="closePhraseHelp" type="button" aria-label="解説を閉じる" title="閉じる" autofocus><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
+    </header>
+    <div class="phrase-help-content" id="phraseHelpContent"></div>
+  </dialog>
+
   <script src="phrase-library.js"></script>
   <script src="phrase-additions.js"></script>
   <script src="beginner-dialogues.js"></script>
   <script src="workbook-scenes.js"></script>
+  <script src="phrase-explanations.js"></script>
   <script>
     const STORAGE_KEY = "my-phrase-mvp-v1";
     const CONVERSATIONS_KEY = "my-phrase-conversations-v1";
@@ -339,6 +364,7 @@
     const additionalLibrary = globalThis.PHRASE_ADDITIONS || [];
     const reviewedDialogues = globalThis.BEGINNER_DIALOGUES || {};
     const workbookScenes = globalThis.WORKBOOK_SCENES || [];
+    const phraseExplanations = globalThis.PHRASE_EXPLANATIONS || {};
     const phraseKey = (text) => String(text).replace(/[‘’]/g, "'").trim().replace(/\s+/g, " ").toLowerCase();
     const suppliedExamples = new Map();
     for (const entry of [...suppliedLibrary, ...additionalLibrary]) {
@@ -425,6 +451,7 @@
     const ICON_EYE_OFF = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49\"/><path d=\"M14.084 14.158a3 3 0 0 1-4.242-4.242\"/><path d=\"M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143\"/><path d=\"m2 2 20 20\"/></svg>";
     const ICON_USER = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"8\" r=\"5\"/><path d=\"M20 21a8 8 0 0 0-16 0\"/></svg>";
     const messageHints = new Map();
+    let phraseHelpTarget = null;
     let phrases = loadPhrases();
 
     const seedConversations = [
@@ -975,6 +1002,7 @@
     }
 
     function setView(viewId) {
+      closePhraseHelp();
       hideTranslations();
       document.body.classList.toggle("practice-mode", viewId === "learnView");
       $("#pageHeader").hidden = viewId === "learnView";
@@ -1363,6 +1391,111 @@
       return html + '<span class="phrase-variable">' + escapeHtml(source.slice(offset)) + '</span>';
     }
 
+    function getPhraseExplanation(text, customCore = "", fragment = "", translation = "") {
+      const matching = additionalLibrary.filter((entry) => {
+        if (phraseKey(entry.examples[0].text) === phraseKey(text)) return true;
+        return suppliedTemplateMatchers.some((m) => m.entry.id === entry.id && m.matcher.test(phraseKey(text)));
+      });
+      const entry = matching.sort((a, b) => b.en.replace(/[○△]|\.{3}/g, "").length - a.en.replace(/[○△]|\.{3}/g, "").length)[0];
+      const notes = entry && phraseExplanations[entry.number];
+      const matches = findCorePatterns(text, customCore);
+      const core = matches.find((m) => phraseKey(m.core).replace(/[.!?]+$/g, "") === phraseKey(fragment).replace(/[.!?]+$/g, "")) || matches[0];
+      const supplied = getSuppliedExample(text);
+      const original = !entry && suppliedLibrary.find((p) => p.en === supplied?.template);
+      const fallback = original || core;
+      const basic = Object.entries(globalThis.BASIC_PHRASE_EXPLANATIONS || {}).find(([key]) => phraseKey(key) === phraseKey(fragment).replace(/[.!?]+$/g, ""))?.[1];
+      const clean = (value) => String(value || "").replace(/[○△]+(?:ing)?/g, "〜");
+      return {
+        title: (entry?.en || original?.en || core?.core || fragment).replace(/[○△]+(?:ing)?/g, "…").replace(/…\./g, "…"),
+        meaning: clean(entry?.ja || basic?.[0] || original?.ja || core?.meaning || translation),
+        usage: notes?.[0] || basic?.[1] || (core?.slot ? "このまとまりのあとに「" + core.slot + "」を続けて使います。" : original?.category ? "「" + original.category + "」について話すときに使う表現です。" : "前後の話と合わせて、このまとまりで意味を捉えます。"),
+        example: text, translation,
+        similar: notes ? { en: notes[1], ja: notes[2], note: notes[3] } : basic ? { en: basic[2], ja: basic[3], note: basic[4] } : null,
+        fallback: !notes && !basic, source: entry?.id || fallback?.id || ""
+      };
+    }
+
+    function closePhraseHelp() {
+      const dialog = $("#phraseHelp");
+      if (dialog.open) dialog.close();
+    }
+
+    function openPhraseHelp(info, target) {
+      const dialog = $("#phraseHelp");
+      phraseHelpTarget = target;
+      $("#phraseHelpTitle").textContent = info.title;
+      const root = $("#phraseHelpContent");
+      root.innerHTML = "";
+      const section = (title, lines) => {
+        const node = document.createElement("section");
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+        node.appendChild(heading);
+        for (const [text, lang, className] of lines.filter(([text]) => text)) {
+          const p = document.createElement("p");
+          p.textContent = text;
+          if (lang) p.setAttribute("lang", lang);
+          if (className) p.className = className;
+          node.appendChild(p);
+        }
+        root.appendChild(node);
+      };
+      section("意味", [[info.meaning, "ja", "help-meaning"]]);
+      section("使う場面", [[info.usage, "ja"]]);
+      section("この会話では", [[info.example, "en", "help-example"], [info.translation, "ja"]]);
+      if (info.similar) section("似た表現・使い分け", [[info.similar.en, "en", "help-example"], [info.similar.ja, "ja"], [info.similar.note, "ja"]]);
+      if (!dialog.open) dialog.showModal();
+      dialog.scrollTop = 0;
+    }
+
+    function bindPhraseHelp(body, text, translation, customCore) {
+      for (const part of body.querySelectorAll?.(".phrase-core") || []) {
+        part.setAttribute("role", "button");
+        part.setAttribute("tabindex", "0");
+        part.setAttribute("aria-haspopup", "dialog");
+        part.setAttribute("aria-label", part.textContent.trim() + "：フレーズの解説");
+        part.title = "フレーズの解説";
+      }
+      let press = null, lastPointerType = "mouse", suppressClick = false;
+      const targetOf = (event) => {
+        const part = event.target?.closest?.(".phrase-core");
+        return part && body.contains(part) ? part : null;
+      };
+      const cancel = () => {
+        if (press) window.clearTimeout(press.timer);
+        press = null;
+      };
+      const open = (target) => {
+        if (target.isConnected === false) return;
+        openPhraseHelp(getPhraseExplanation(text, customCore, target.textContent.trim(), translation), target);
+      };
+      body.addEventListener("pointerdown", (event) => {
+        cancel();
+        const target = targetOf(event);
+        if (!target || event.isPrimary === false || event.button > 0) return;
+        lastPointerType = event.pointerType || "mouse";
+        suppressClick = false;
+        const timer = window.setTimeout(() => { press = null; suppressClick = true; open(target); }, 500);
+        press = { timer, x: event.clientX, y: event.clientY };
+      });
+      body.addEventListener("pointermove", (event) => {
+        if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancel();
+      });
+      for (const event of ["pointerup", "pointercancel", "pointerleave", "focusout"]) body.addEventListener(event, cancel);
+      body.addEventListener("contextmenu", (event) => { if (targetOf(event)) event.preventDefault(); });
+      body.addEventListener("click", (event) => {
+        const target = targetOf(event);
+        if (!target || suppressClick) return;
+        if (event.detail !== 0 && (event.pointerType || lastPointerType) === "touch") return;
+        cancel();
+        open(target);
+      });
+      body.addEventListener("keydown", (event) => {
+        const target = targetOf(event);
+        if (target && ["Enter", " "].includes(event.key)) { event.preventDefault(); cancel(); open(target); }
+      });
+    }
+
     function patternNotes(patterns) {
       const unique = [...new Map(patterns.map((p) => [p.core.toLowerCase(), p])).values()];
       return unique.map((p) => '<div class="pattern-item"><strong class="phrase-core" lang="en">'
@@ -1615,6 +1748,7 @@
       messageText.className = "message-text";
       messageText.setAttribute("lang", "en");
       messageText.innerHTML = formatEnglish(text, core);
+      bindPhraseHelp(messageText, text, translation, core);
       bubble.appendChild(messageText);
       line.appendChild(bubble);
       if (translation) {
@@ -1944,6 +2078,7 @@
     }
 
     function startConversation(id, keepHistory = false) {
+      if (!keepHistory) closePhraseHelp();
       hideTranslations();
       if (responseTimer !== null) window.clearTimeout(responseTimer);
       responseTimer = null;
@@ -2333,6 +2468,11 @@
     }
 
     function bindEvents() {
+      let backdropStart = false;
+      $("#closePhraseHelp").addEventListener("click", closePhraseHelp);
+      $("#phraseHelp").addEventListener("pointerdown", (event) => { backdropStart = event.target === $("#phraseHelp"); });
+      $("#phraseHelp").addEventListener("click", (event) => { if (backdropStart && event.target === $("#phraseHelp")) closePhraseHelp(); backdropStart = false; });
+      $("#phraseHelp").addEventListener("close", () => { backdropStart = false; phraseHelpTarget?.focus?.({ preventScroll: true }); phraseHelpTarget = null; });
       $("#replyJapaneseBtn").addEventListener("click", () => setReplyLanguage("ja"));
       $("#replyEnglishBtn").addEventListener("click", () => setReplyLanguage("en"));
       $$(".nav button").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));

@@ -30,6 +30,7 @@ class Element {
     this.options = this.children;
     this.disabled = false;
     this.value = '';
+    this.open = false;
   }
   set innerHTML(value) { this.html = value; this.children.length = 0; }
   get innerHTML() { return this.html || ''; }
@@ -39,6 +40,9 @@ class Element {
   removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
   setAttribute(key, value) { this.attributes[key] = value; }
   addEventListener(key, handler) { this.events[key] = handler; }
+  showModal() { this.open = true; }
+  close() { this.open = false; this.events.close?.(); }
+  focus() { this.focused = true; }
 }
 
 // Keep the previous dialogue fixtures for regression checks; live tests load the new scene bank too.
@@ -46,6 +50,7 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
   const storage = new Map(Object.entries(saved));
   const elements = new Map();
   const timers = new Map();
+  const timerDelays = new Map();
   let timerId = 0;
   const randomMath = Object.create(Math);
   randomMath.random = () => {
@@ -61,7 +66,7 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
     document: { querySelector: element, querySelectorAll: () => [], createElement: () => new Element() },
     window: {
-      setTimeout: handler => { timers.set(++timerId, handler); return timerId; },
+      setTimeout: (handler, delay) => { timers.set(++timerId, handler); timerDelays.set(timerId, delay); return timerId; },
       clearTimeout: id => timers.delete(id)
     }
   });
@@ -70,6 +75,7 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-library.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-additions.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'beginner-dialogues.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'phrase-explanations.js'), 'utf8'), context);
   if (workbook) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'workbook-scenes.js'), 'utf8'), context);
   vm.runInContext(source + `
     globalThis.api = {
@@ -92,10 +98,11 @@ function loadApp(saved = {}, seed = 12345, workbook = false) {
       phrases: () => phrases,
       workbook: () => workbookScenes,
       coverage: () => practiceCoverage,
-      renderOptions, pickNextTopic, getCategories
+      renderOptions, pickNextTopic, getCategories,
+      getPhraseExplanation, bindPhraseHelp, openPhraseHelp, closePhraseHelp
     };
   `, context);
-  return { api: context.api, storage, element, flush: () => {
+  return { api: context.api, storage, element, pendingDelays: () => [...timers.keys()].map(id => timerDelays.get(id)), flush: () => {
     const first = timers.entries().next().value;
     if (!first) return false;
     timers.delete(first[0]);
@@ -935,3 +942,4 @@ test('Topic changes keep the choices visible and require no restart button', () 
 });
 
 require('./workbook-checks.cjs')({test, assert, fs, path, loadApp, plain, Element, conversationKey});
+require('./phrase-help-checks.cjs')({test, assert, loadApp, plain, Element});
